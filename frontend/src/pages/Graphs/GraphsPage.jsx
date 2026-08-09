@@ -1,0 +1,2 @@
+import { PageHeader } from '../../components/common/UI';
+export default function GraphsPage() { return <><PageHeader eyebrow="Módulo de grafos" title="Grafos" description="Un espacio para estudiar relaciones, recorridos y estructuras conectadas." /><section className="future-panel"><span>◇</span><p className="status">Módulo en desarrollo</p><h2>Próximamente</h2><p>La arquitectura está preparada para incorporar representaciones de grafos, matrices y listas de adyacencia, árboles de expansión, Prim, Kruskal y otros contenidos del curso.</p></section></>; }

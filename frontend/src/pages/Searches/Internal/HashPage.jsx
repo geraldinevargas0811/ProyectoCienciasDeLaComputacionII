@@ -1,0 +1,4 @@
+import { PageHeader } from '../../../components/common/UI';
+import MemoryStructure from '../../../components/memory/MemoryStructure';
+import { ConfigurationPanel, VisualizationPanel } from '../../../components/search/SearchPanels';
+export default function HashPage() { return <><PageHeader eyebrow="Búsquedas / Memoria interna" title="Transformación de claves / tablas hash" description="Asocia claves con posiciones para acceder a los datos de forma eficiente." /><div className="lab-layout"><div className="lab-layout__controls"><ConfigurationPanel hash /><VisualizationPanel hash /></div><div className="lab-layout__visual"><section className="panel"><h2>Visualización de la tabla hash</h2><p className="panel__intro">Cada celda identifica el índice, la clave y su posición.</p><MemoryStructure hash values={['—', 29, '—', 17, 45, '—', 31]} /></section></div></div></>; }
