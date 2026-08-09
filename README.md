@@ -133,7 +133,7 @@ Inicialmente se contempla el uso de almacenamiento local del navegador cuando se
 ## 📁 Estructura del proyecto
 
 ```text
-CC2/
+ProyectoCienciasDeLaComputacionII/
 │
 ├── frontend/
 │   ├── public/
