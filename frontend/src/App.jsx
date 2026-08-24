@@ -5,6 +5,7 @@ import SearchesHomePage from './pages/Searches/SearchesHome/SearchesHomePage';
 import InternalPage from './pages/Searches/Internal/InternalPage';
 import AlgorithmPage from './pages/Searches/Internal/AlgorithmPage';
 import HashPage from './pages/Searches/Internal/HashPage';
+import ResiduesPage from './pages/Searches/Internal/ResiduesPage';
 import ExternalPage from './pages/Searches/SearchesHome/External/ExternalPage';
 import GraphsPage from './pages/Graphs/GraphsPage';
 
@@ -15,6 +16,7 @@ function resolvePage(path, navigate) {
   if (path === '/busquedas/interna/secuencial') return <AlgorithmPage type="sequential" />;
   if (path === '/busquedas/interna/binaria') return <AlgorithmPage type="binary" />;
   if (path === '/busquedas/interna/hash') return <HashPage />;
+  if (path === '/busquedas/interna/residuos') return <ResiduesPage />;
   if (path === '/busquedas/externa') return <ExternalPage />;
   if (path === '/grafos') return <GraphsPage />;
   return <HomePage navigate={navigate} />;
