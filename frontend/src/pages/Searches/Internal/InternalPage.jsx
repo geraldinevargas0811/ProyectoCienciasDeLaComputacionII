@@ -1,2 +1,21 @@
-import { AlgorithmCard, PageHeader } from '../../../components/common/UI';
-export default function InternalPage({ navigate }) { return <><PageHeader eyebrow="Búsquedas / Memoria interna" title="Selecciona un algoritmo" description="Cada laboratorio está preparado para visualizar el comportamiento de una estructura en memoria." /><section className="algorithm-grid algorithm-grid--four"><AlgorithmCard tag="Lineal" title="Búsqueda secuencial" description="Recorre los elementos de una estructura hasta encontrar la clave buscada." onClick={() => navigate('/busquedas/interna/secuencial')} /><AlgorithmCard tag="Divide y vencerás" title="Búsqueda binaria" description="Reduce el espacio de búsqueda en una estructura previamente ordenada." onClick={() => navigate('/busquedas/interna/binaria')} /><AlgorithmCard tag="Árboles" title="Búsqueda por residuos" description="Visualiza árboles digitales, por residuos y por residuos múltiples." onClick={() => navigate('/busquedas/interna/residuos')} /><AlgorithmCard tag="Dispersión" title="Transformación de claves" description="Organiza y consulta claves mediante una tabla hash." onClick={() => navigate('/busquedas/interna/hash')} /></section></>; }
+import { OptionCard, PageHeader } from '../../../components/common/UI';
+
+const algorithms = [
+  ['→', 'Búsqueda secuencial', '/busquedas/interna/secuencial'],
+  ['⇆', 'Búsqueda binaria', '/busquedas/interna/binaria'],
+  ['⌗', 'Búsqueda por residuos', '/busquedas/interna/residuos'],
+  ['▦', 'Transformación por claves', '/busquedas/interna/hash'],
+];
+
+export default function InternalPage({ navigate }) {
+  return (
+    <>
+      <PageHeader title="Búsquedas internas" />
+      <section className="option-grid option-grid--four">
+        {algorithms.map(([icon, title, to]) => (
+          <OptionCard key={to} icon={icon} title={title} onClick={() => navigate(to)} />
+        ))}
+      </section>
+    </>
+  );
+}

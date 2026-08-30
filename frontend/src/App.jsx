@@ -9,12 +9,18 @@ import ResiduesPage from './pages/Searches/Internal/ResiduesPage';
 import ExternalPage from './pages/Searches/SearchesHome/External/ExternalPage';
 import GraphsPage from './pages/Graphs/GraphsPage';
 
+// Cada algoritmo se envuelve en un componente propio para que React memte/desmonte
+// instancias independientes al navegar. Esto evita que Secuencial y Binaria compartan
+// estado (nunca deben ocupar el mismo slot del árbol). La lógica interna es la misma.
+function SequentialAlgorithmPage() { return <AlgorithmPage type="sequential" />; }
+function BinaryAlgorithmPage() { return <AlgorithmPage type="binary" />; }
+
 function resolvePage(path, navigate) {
   if (path === '/') return <HomePage navigate={navigate} />;
   if (path === '/busquedas') return <SearchesHomePage navigate={navigate} />;
   if (path === '/busquedas/interna') return <InternalPage navigate={navigate} />;
-  if (path === '/busquedas/interna/secuencial') return <AlgorithmPage type="sequential" />;
-  if (path === '/busquedas/interna/binaria') return <AlgorithmPage type="binary" />;
+  if (path === '/busquedas/interna/secuencial') return <SequentialAlgorithmPage />;
+  if (path === '/busquedas/interna/binaria') return <BinaryAlgorithmPage />;
   if (path === '/busquedas/interna/hash') return <HashPage />;
   if (path === '/busquedas/interna/residuos') return <ResiduesPage />;
   if (path === '/busquedas/externa') return <ExternalPage />;

@@ -1,2 +1,13 @@
-import { ModuleCard, PageHeader } from '../../../components/common/UI';
-export default function SearchesHomePage({ navigate }) { return <><PageHeader eyebrow="Módulo de búsquedas" title="¿Dónde se encuentran los datos?" description="Selecciona el tipo de memoria para acceder a los laboratorios disponibles." /><section className="module-grid module-grid--compact"><ModuleCard icon="▤" title="Memoria interna" description="Trabaja con estructuras almacenadas directamente en memoria principal." action="Ver algoritmos" onClick={() => navigate('/busquedas/interna')} /><ModuleCard icon="▥" title="Memoria externa" description="Espacio preparado para futuros métodos de organización de archivos." action="Explorar módulo" onClick={() => navigate('/busquedas/externa')} /></section></>; }
+import { OptionCard, PageHeader } from '../../../components/common/UI';
+
+export default function SearchesHomePage({ navigate }) {
+  return (
+    <>
+      <PageHeader title="Búsquedas" />
+      <section className="option-grid">
+        <OptionCard icon="▤" title="Búsquedas internas" onClick={() => navigate('/busquedas/interna')} />
+        <OptionCard icon="▥" title="Búsquedas externas" onClick={() => navigate('/busquedas/externa')} />
+      </section>
+    </>
+  );
+}

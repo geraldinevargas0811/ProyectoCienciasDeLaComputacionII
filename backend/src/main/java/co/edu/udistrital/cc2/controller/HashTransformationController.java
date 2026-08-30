@@ -16,4 +16,6 @@ public class HashTransformationController {
     public HashTransformResponse transform(@RequestBody HashTransformRequest request) { return service.transform(request); }
     @PostMapping("/search")
     public HashTransformResponse search(@RequestBody HashSearchRequest request) { return service.search(request); }
+    @PostMapping("/delete")
+    public HashTransformResponse delete(@RequestBody HashSearchRequest request) { return service.delete(request); }
 }

@@ -58,7 +58,7 @@ function insertResidue(root, info, width) {
     if (current.node.kind === 'key') {
       if (current.node.key === info.key) return { tree: root, duplicate: true, details: [`${info.key} ya existe en el árbol.`], path };
       const previous = current.node;
-      const connector = link(previous.id);
+      const connector = link(`${node.id}.${group}.e`);
       node.children[group] = edge(connector, group, level * width);
       node = connector; path.push(connector.id);
       details.push(`Colisión con ${previous.key}: ambas claves comparten ${group}. Se crea un nodo de enlace vacío y se compara el siguiente ${width === 1 ? 'bit' : 'grupo'}.`);
@@ -66,7 +66,7 @@ function insertResidue(root, info, width) {
       for (let next = level + 1; next < groups.length; next += 1) {
         const oldGroup = chunks(previous.binary, width)[next]; const newGroup = groups[next];
         if (oldGroup === newGroup) {
-          const common = link(`${connector.id}.${oldGroup}`);
+          const common = link(`${node.id}.${oldGroup}`);
           node.children[oldGroup] = edge(common, oldGroup, next * width); node = common; path.push(common.id);
           details.push(`El grupo ${newGroup} coincide; el enlace permanece vacío y se continúa.`);
         } else {

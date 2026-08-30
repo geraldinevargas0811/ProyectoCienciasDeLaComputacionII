@@ -3,6 +3,7 @@ function stateFor(index, { currentIndex, collisionIndices, foundIndex, discarded
   if (currentIndex === index) {
     if (['inserted', 'available', 'free', 'found'].includes(stepAction)) return 'found';
     if (['collision', 'attempt'].includes(stepAction)) return 'collision';
+    if (stepAction === 'deleted') return 'deleted';
     if (stepAction === 'discarded') return 'discarded';
     return 'evaluating';
   }
@@ -15,13 +16,18 @@ const NEUTRAL_OPTIONS = { currentIndex: undefined, currentArray: undefined, curr
 // Ancho aproximado que ocupa cada nodo extra de una lista enlazada (nodo + línea de conexión).
 const CHAIN_NODE_WIDTH = 66;
 
+function displayValue(value) {
+  return value === '*' ? '✕' : (value ?? '—');
+}
+
 function HashArray({ title, values, stateOptions, forcedState, lists = [] }) {
   return <section className="hash-array"><h3>{title}</h3>{values.map((value, index) => {
     const position = index + 1;
     const chain = lists[index];
     const rowOptions = stateOptions.currentNode > 0 && stateOptions.currentIndex === position ? { ...stateOptions, currentIndex: undefined } : stateOptions;
     const rowState = forcedState?.position === position ? forcedState.state : stateFor(position, rowOptions);
-    return <div className={`hash-array__row${rowState ? ` memory-cell--${rowState}` : ''}`} key={position}><span>{position}</span><strong className="hash-array__cell">{value ?? '—'}</strong>{chain?.length > 1 && <div className="hash-chain" aria-label={`Lista enlazada de la posición ${position}`}>{chain.slice(1).map((item, chainIndex) => { const nodeIndex = chainIndex + 1; const nodeState = stateOptions.currentNode === nodeIndex ? (['found', 'inserted', 'available'].includes(stateOptions.stepAction) ? 'found' : stateOptions.stepAction === 'collision' ? 'collision' : 'evaluating') : ''; return <span className={`hash-chain__node${nodeState ? ` memory-cell--${nodeState}` : ''}`} key={`${item}-${chainIndex}`}>{item}</span>; })}<em>NULL</em></div>}</div>;
+    const embeddedState = value === '*' ? 'deleted' : undefined;
+    return <div className={`hash-array__row${embeddedState ? ` memory-cell--${embeddedState}` : ''}${rowState ? ` memory-cell--${rowState}` : ''}`} key={position}><span>{position}</span><strong className={`hash-array__cell${embeddedState ? ' hash-array__cell--deleted' : ''}`}>{displayValue(value)}</strong>{chain?.length > 1 && <div className="hash-chain" aria-label={`Lista enlazada de la posición ${position}`}>{chain.slice(1).map((item, chainIndex) => { const nodeIndex = chainIndex + 1; const nodeState = stateOptions.currentNode === nodeIndex ? (['found', 'inserted', 'available'].includes(stateOptions.stepAction) ? 'found' : stateOptions.stepAction === 'collision' ? 'collision' : 'evaluating') : ''; return <span className={`hash-chain__node${nodeState ? ` memory-cell--${nodeState}` : ''}`} key={`${item}-${chainIndex}`}>{item}</span>; })}<em>NULL</em></div>}</div>;
   })}</section>;
 }
 

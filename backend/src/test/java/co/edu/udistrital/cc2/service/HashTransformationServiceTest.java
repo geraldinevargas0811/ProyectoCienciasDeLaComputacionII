@@ -206,4 +206,49 @@ class HashTransformationServiceTest {
         assertEquals(1, withFreeMainSlot.nested().size());
         assertNull(withFreeMainSlot.nested().get(0).get(2));
     }
+
+    @Test
+    void openAddressingDeleteUsesTombstonePreservingLaterClashesChain() {
+        // 35 y 45 comparten H=6: 35 ocupa 6, 45 con prueba lineal va a 7. Eliminar la primera de
+        // la cadena (35) y verificar que 45 sigue siendo localizable.
+        HashTransformResponse del = service.delete(new HashSearchRequest(List.of("35", "45"), 10, "modulo", "linear", "35"));
+        assertEquals("*", del.table().get(5));
+        assertEquals("deleted", del.steps().get(del.steps().size() - 1).action());
+
+        HashTransformResponse afterDelete = service.search(new HashSearchRequest(List.of("35", "45"), 10, "modulo", "linear", "45"));
+        assertTrue(afterDelete.steps().stream().anyMatch(step -> "45".equals(step.key()) && "found".equals(step.action())));
+        // La clave eliminada queda marcada como tombstone en la tabla resultante del delete.
+        assertEquals("*", del.table().get(5));
+    }
+
+    @Test
+    void openAddressingDeleteLeavesTombstoneMarkerOnTheRemovedCell() {
+        // Al eliminar 45 (posición 6), la celda queda marcada como eliminada (tombstone) en el
+        // resultado de la operación, de modo que conserva la cadena de colisiones de la tabla.
+        HashTransformResponse del = service.delete(new HashSearchRequest(List.of("45"), 10, "modulo", "linear", "45"));
+        assertEquals("*", del.table().get(5));
+        assertEquals("deleted", del.steps().get(del.steps().size() - 1).action());
+    }
+
+    @Test
+    void deleteNotFoundReportsDiscardedWithoutModifyingTable() {
+        HashTransformResponse del = service.delete(new HashSearchRequest(List.of("16", "26"), 10, "modulo", "linear", "99"));
+        assertEquals("discarded", del.steps().get(del.steps().size() - 1).action());
+        assertEquals("16", del.table().get(6));
+        assertEquals("26", del.table().get(7));
+    }
+
+    @Test
+    void linkedAndNestedDeleteRemoveSingleKeyKeepingCoherence() {
+        HashTransformResponse linkedDel = service.delete(new HashSearchRequest(List.of("16", "26", "36"), 10, "modulo", "linked", "26"));
+        assertEquals(List.of("16", "36"), linkedDel.lists().get(6));
+        assertEquals("deleted", linkedDel.steps().get(linkedDel.steps().size() - 1).action());
+
+        HashTransformResponse nestedDel = service.delete(new HashSearchRequest(List.of("35", "85", "95"), 10, "modulo", "nested", "85"));
+        assertEquals("35", nestedDel.table().get(5));
+        assertNull(nestedDel.nested().get(0).get(5));
+        assertEquals("95", nestedDel.nested().get(1).get(5));
+        assertTrue(service.search(new HashSearchRequest(List.of("35", "85", "95"), 10, "modulo", "nested", "95"))
+                .steps().stream().anyMatch(step -> "found".equals(step.action())));
+    }
 }

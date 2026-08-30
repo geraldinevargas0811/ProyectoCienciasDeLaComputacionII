@@ -11,20 +11,15 @@ export function PageHeader({ eyebrow, title, description, children }) {
   </header>;
 }
 
-export function ModuleCard({ icon, title, description, action, onClick, disabled = false }) {
-  return <article className={`module-card ${disabled ? 'module-card--disabled' : ''}`}>
-    <span className="module-card__icon" aria-hidden="true">{icon}</span>
+export function OptionCard({ icon, title, onClick, className = '', disabled = false }) {
+  const activate = () => { if (!disabled) onClick?.(); };
+  const onKeyDown = (event) => {
+    if (disabled) return;
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.(); }
+  };
+  return <article className={`option-card ${className} ${disabled ? 'option-card--disabled' : ''}`} role="button" tabIndex={disabled ? -1 : 0} aria-disabled={disabled} onClick={activate} onKeyDown={onKeyDown}>
+    {icon && <span className="option-card__icon" aria-hidden="true">{icon}</span>}
     <h2>{title}</h2>
-    <p>{description}</p>
-    <Button onClick={onClick} disabled={disabled} variant={disabled ? 'secondary' : 'primary'}>{action}</Button>
-  </article>;
-}
-
-export function AlgorithmCard({ title, description, tag, onClick }) {
-  return <article className="algorithm-card">
-    <span className="algorithm-card__tag">{tag}</span>
-    <h2>{title}</h2>
-    <p>{description}</p>
-    <Button variant="ghost" onClick={onClick}>Abrir laboratorio <span>→</span></Button>
+    <span className="option-card__arrow" aria-hidden="true">→</span>
   </article>;
 }

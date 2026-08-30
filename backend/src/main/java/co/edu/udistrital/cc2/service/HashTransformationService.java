@@ -9,6 +9,92 @@ import java.util.List;
 
 @Service
 public class HashTransformationService {
+    /** Marcador de celda eliminada (tombstone). En direccionamiento abierto permite conservar
+     *  la cadena de colisiones: la búsqueda no se detiene en un tombstone y la inserción lo
+     *  reutiliza. No puede colisionar con una clave real porque las claves son numéricas. */
+    private static final String TOMBSTONE = "*";
+
+    private boolean isEmptyOrTombstone(String value) { return value == null || TOMBSTONE.equals(value); }
+
+    public HashTransformResponse delete(HashSearchRequest request) {
+        if (request == null || request.target() == null || !request.target().matches("\\d+")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La clave a eliminar debe ser numérica.");
+        HashTransformResponse structure = transform(new HashTransformRequest(request.keys(), request.size(), request.hashFunction(), request.collisionMethod()));
+        int size = request.size(); int initial = hashPosition(request.target(), size, request.hashFunction());
+        List<HashStepDto> steps = new ArrayList<>();
+        List<String> table = structure.table(); List<List<String>> nested = structure.nested(); List<List<String>> lists = structure.lists();
+        addStep(steps, request.target(), initial, initial, List.of(), "searching", "Buscar " + request.target() + " para eliminar. " + hashDescription(request.target(), size, request.hashFunction(), initial), table, nested, lists);
+        if ("nested".equals(request.collisionMethod())) return deleteNested(request.target(), initial, size, structure, steps);
+        if ("linked".equals(request.collisionMethod())) return deleteLinked(request.target(), initial, structure, steps);
+        return deleteOpenAddressing(request.target(), initial, request.collisionMethod(), structure, steps);
+    }
+
+    private HashTransformResponse deleteOpenAddressing(String target, int initial, String method, HashTransformResponse structure, List<HashStepDto> steps) {
+        int size = structure.table().size(); int jump = "double".equals(method) ? secondHash(initial, size) : 0;
+        List<String> table = structure.table();
+        for (int i = 0; i < size; i++) {
+            int offset = "quadratic".equals(method) ? i * i : "double".equals(method) ? i * jump : i;
+            int position = normalize(initial + offset, size); String value = table.get(position - 1);
+            String expression = expression(method, initial, i, position, jump);
+            if (value == null) { addStep(steps, target, initial, position, List.of(), "discarded", "Posición " + position + " libre: la clave no se encuentra, no hay nada que eliminar.", structure.table(), structure.nested(), structure.lists()); break; }
+            if (TOMBSTONE.equals(value)) { addStep(steps, target, initial, position, List.of(), "discarded", "Evaluar " + expression + ": posición " + position + " eliminada previamente, se continúa.", structure.table(), structure.nested(), structure.lists()); continue; }
+            addStep(steps, target, initial, position, List.of(new HashAttemptDto(position, true, expression)), "searching", "Evaluar " + expression + ": contiene " + value + ".", structure.table(), structure.nested(), structure.lists());
+            if (target.equals(value)) {
+                table.set(position - 1, TOMBSTONE);
+                addStep(steps, target, initial, position, List.of(), "deleted", "Clave " + target + " encontrada en la posición " + position + ": se elimina (queda marcada como eliminada).", structure.table(), structure.nested(), structure.lists());
+                return new HashTransformResponse("Eliminación por transformación de claves", structure.initialStructure(), table, structure.nested(), structure.nestedByPosition(), structure.lists(), steps, structure.collisions());
+            }
+            addStep(steps, target, initial, position, List.of(new HashAttemptDto(position, true, expression)), "collision", "Posición " + position + " contiene " + value + ", clave diferente.", structure.table(), structure.nested(), structure.lists());
+        }
+        return new HashTransformResponse("Eliminación por transformación de claves", structure.initialStructure(), table, structure.nested(), structure.nestedByPosition(), structure.lists(), steps, structure.collisions());
+    }
+
+    private HashTransformResponse deleteNested(String target, int initial, int size, HashTransformResponse structure, List<HashStepDto> steps) {
+        List<String> table = structure.table(); List<List<String>> nested = structure.nested();
+        int bucket = initial - 1;
+        String mainValue = table.get(bucket);
+        addStep(steps, target, initial, initial, List.of(), "searching", "Evaluar primero el arreglo principal, posición " + initial + ".", structure.table(), structure.nested(), structure.lists());
+        if (target.equals(mainValue)) {
+            table.set(bucket, null);
+            addStep(steps, target, initial, initial, List.of(), "deleted", "Clave " + target + " encontrada y eliminada del arreglo principal.", structure.table(), structure.nested(), structure.lists());
+        } else if (mainValue == null) {
+            addStep(steps, target, initial, initial, List.of(), "discarded", "Posición libre: la clave no se encuentra.", structure.table(), structure.nested(), structure.lists());
+        } else {
+            boolean found = false;
+            for (int array : structure.nestedByPosition().get(bucket)) {
+                List<String> lateral = nested.get(array - 1);
+                String value = lateral.get(bucket);
+                addStep(steps, target, initial, initial, List.of(), "searching", "Evaluar arreglo " + array + ", posición " + initial + ".", array, structure.table(), structure.nested(), structure.lists());
+                if (target.equals(value)) { lateral.set(bucket, null); addStep(steps, target, initial, initial, List.of(), "deleted", "Clave " + target + " encontrada y eliminada del arreglo " + array + ".", array, structure.table(), structure.nested(), structure.lists()); found = true; break; }
+                if (value == null) { addStep(steps, target, initial, initial, List.of(), "discarded", "Posición libre en el arreglo " + array + ": la clave no se encuentra.", array, structure.table(), structure.nested(), structure.lists()); break; }
+                addStep(steps, target, initial, initial, List.of(), "collision", "Arreglo " + array + " contiene " + value + ", clave diferente.", array, structure.table(), structure.nested(), structure.lists());
+            }
+            if (!found && mainValue != null) addStep(steps, target, initial, initial, List.of(), "discarded", "Se agotó la ruta asociada a la posición " + initial + ": la clave no se encuentra.", structure.table(), structure.nested(), structure.lists());
+        }
+        return new HashTransformResponse("Eliminación por transformación de claves", structure.initialStructure(), table, nested, structure.nestedByPosition(), structure.lists(), steps, structure.collisions());
+    }
+
+    private HashTransformResponse deleteLinked(String target, int initial, HashTransformResponse structure, List<HashStepDto> steps) {
+        List<List<String>> lists = structure.lists(); List<String> table = structure.table();
+        List<String> chain = lists.get(initial - 1);
+        if (chain == null) { addStep(steps, target, initial, initial, List.of(), "discarded", "Posición " + initial + " libre: la clave no se encuentra.", structure.table(), structure.nested(), structure.lists()); }
+        else {
+            boolean found = false;
+            for (int index = 0; index < chain.size(); index += 1) {
+                String value = chain.get(index); int current = index == 0 ? initial : 0;
+                addStep(steps, target, initial, current, List.of(), "searching", "Evaluar " + (index == 0 ? "la posición principal" : "el nodo " + index) + ".", 0, index, structure.table(), structure.nested(), structure.lists());
+                if (target.equals(value)) {
+                    chain.remove(index);
+                    if (chain.isEmpty()) { table.set(initial - 1, null); lists.set(initial - 1, null); }
+                    addStep(steps, target, initial, current, List.of(), "deleted", "Clave " + target + " eliminada de la cadena de la posición " + initial + ".", 0, index, structure.table(), structure.nested(), structure.lists());
+                    found = true; break;
+                }
+                addStep(steps, target, initial, current, List.of(), "collision", value + " no coincide con " + target + ".", 0, index, structure.table(), structure.nested(), structure.lists());
+            }
+            if (!found) addStep(steps, target, initial, initial, List.of(), "discarded", "Se agotó la lista enlazada: la clave no se encuentra.", structure.table(), structure.nested(), structure.lists());
+        }
+        return new HashTransformResponse("Eliminación por transformación de claves", structure.initialStructure(), table, structure.nested(), structure.nestedByPosition(), lists, steps, structure.collisions());
+    }
+
     public HashTransformResponse search(HashSearchRequest request) {
         if (request == null || request.target() == null || !request.target().matches("\\d+")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La clave a buscar debe ser numérica.");
         HashTransformResponse structure = transform(new HashTransformRequest(request.keys(), request.size(), request.hashFunction(), request.collisionMethod()));
@@ -28,6 +114,7 @@ public class HashTransformationService {
             int position = normalize(initial + offset, size); String value = structure.table().get(position - 1);
             String expression = expression(method, initial, i, position, jump);
             addStep(steps, target, initial, position, List.of(), "searching", "Evaluar " + expression + ".", structure.table(), structure.nested(), structure.lists());
+            if (TOMBSTONE.equals(value)) { addStep(steps, target, initial, position, List.of(), "discarded", "Posición " + position + " está eliminada del proceso: se continúa la búsqueda.", structure.table(), structure.nested(), structure.lists()); continue; }
             if (value == null) { addStep(steps, target, initial, position, List.of(), "discarded", "Posición " + position + " libre: la clave no se encuentra.", structure.table(), structure.nested(), structure.lists()); break; }
             if (target.equals(value)) { addStep(steps, target, initial, position, List.of(), "found", "Clave " + target + " encontrada en la posición " + position + ".", structure.table(), structure.nested(), structure.lists()); break; }
             addStep(steps, target, initial, position, List.of(new HashAttemptDto(position, true, expression)), "collision", "Posición " + position + " contiene " + value + ", clave diferente.", structure.table(), structure.nested(), structure.lists());
@@ -99,10 +186,17 @@ public class HashTransformationService {
         for (int i = 0; i < size; i++) {
             int offset = switch (method) { case "quadratic" -> i * i; case "double" -> i * jump; default -> i; };
             int position = normalize(initial + offset, size);
-            boolean occupied = table.get(position - 1) != null;
+            boolean isTombstone = TOMBSTONE.equals(table.get(position - 1));
+            boolean occupied = table.get(position - 1) != null && !isTombstone;
             String expression = expression(method, initial, i, position, jump);
             attempts.add(new HashAttemptDto(position, occupied, expression));
             addStep(steps, key, initial, position, attempts, "evaluating", "Evaluar " + expression + ": posición " + position + ".", table, nested, lists);
+            if (isTombstone) {
+                table.set(position - 1, key);
+                addStep(steps, key, initial, position, attempts, "inserted", "Posición " + position + " eliminada estaba disponible: se reutiliza para insertar la clave " + key + ".", table, nested, lists);
+                if (i > 0) collisions.add(new HashCollisionDto(key, initial, methodName(method), List.copyOf(attempts), String.valueOf(position)));
+                return;
+            }
             if (occupied) {
                 addStep(steps, key, initial, position, attempts, "collision", "Colisión en posición " + position + ": está ocupada por " + table.get(position - 1) + ".", table, nested, lists);
             } else {
@@ -122,7 +216,7 @@ public class HashTransformationService {
         int bucket = initial - 1;
         // Regla 1: toda clave se evalúa SIEMPRE primero contra el arreglo principal.
         addStep(steps, key, initial, initial, List.of(), "evaluating", "Evaluar primero el arreglo principal, posición " + initial + ".", table, nested, lists);
-        if (table.get(bucket) == null) {
+        if (isEmptyOrTombstone(table.get(bucket))) {
             table.set(bucket, key);
             addStep(steps, key, initial, initial, List.of(), "inserted", "Posición " + initial + " libre: insertar la clave " + key + " en el arreglo principal.", table, nested, lists); return;
         }
@@ -135,7 +229,7 @@ public class HashTransformationService {
             List<String> lateral = nested.get(arrayIndex);
             int arrayNumber = arrayIndex + 1;
             addStep(steps, key, initial, initial, List.copyOf(attempts), "evaluating", "Evaluar el arreglo " + arrayNumber + ", posición " + initial + ".", arrayNumber, table, nested, lists);
-            if (lateral.get(bucket) == null) {
+            if (isEmptyOrTombstone(lateral.get(bucket))) {
                 lateral.set(bucket, key);
                 if (!associated.contains(arrayNumber)) associated.add(arrayNumber);
                 addStep(steps, key, initial, initial, List.copyOf(attempts), "inserted", "Arreglo " + arrayNumber + ", posición " + initial + " libre: insertar la clave " + key + ".", arrayNumber, table, nested, lists);
