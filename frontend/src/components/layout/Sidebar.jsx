@@ -41,7 +41,6 @@ export default function Sidebar({ navigate, path }) {
         {transformationOpen && <div className="sidebar__items sidebar__items--nested"><button className={isActive('/busquedas/externa/hash') ? 'active' : ''} onClick={() => visit('/busquedas/externa/hash')}>Función hash</button></div>}
         <button className="sidebar__group" onClick={() => setOtherOpen((open) => !open)} aria-expanded={otherOpen}>Otras búsquedas externas <span>{otherOpen ? '⌄' : '›'}</span></button>
         {otherOpen && <div className="sidebar__items sidebar__items--nested"><button className={isActive('/busquedas/externa/dinamicas') ? 'active' : ''} onClick={() => visit('/busquedas/externa/dinamicas')}>Búsquedas dinámicas por transformación de claves</button></div>}
-        <button className={isActive('/busquedas/externa/comparacion') ? 'sidebar__link active' : 'sidebar__link'} onClick={() => visit('/busquedas/externa/comparacion')}>Comparación de métodos</button>
       </div>
     )}
     <p className="sidebar__title sidebar__title--secondary">Grafos</p>

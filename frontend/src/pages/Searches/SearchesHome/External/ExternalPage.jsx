@@ -11,9 +11,6 @@ export default function ExternalPage({ navigate }) {
         <OptionCard icon="⌗" title="Búsqueda por transformación de claves" onClick={() => navigate('/busquedas/externa/hash')} />
         <OptionCard icon="▦" title="Otras búsquedas externas" onClick={() => navigate('/busquedas/externa/dinamicas')} />
       </section>
-      <section className="option-grid" style={{ marginTop: 22 }}>
-        <OptionCard icon="⚖" title="Comparación de métodos" onClick={() => navigate('/busquedas/externa/comparacion')} />
-      </section>
     </>
   );
 }
