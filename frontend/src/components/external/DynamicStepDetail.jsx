@@ -127,6 +127,11 @@ export default function DynamicStepDetail({
           </span>
           <span className="dyn-step__meta-item">
             Densidad: <strong>{step.density ?? '—'}</strong>
+            {step.density != null && (
+              <span className="dyn-step__density-bar">
+                <span className="dyn-step__density-fill" style={{ width: `${Math.min(100, Math.max(0, Number(step.density) * 100))}%` }} />
+              </span>
+            )}
           </span>
           <span className="dyn-step__meta-item">
             Accesos: <strong>{step.accesses ?? 0}</strong>

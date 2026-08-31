@@ -64,6 +64,9 @@ export default function DynamicViz({ buckets, activeBucket, reason }) {
                 key={index + 1}
                 className={`dynamic-table__cell dynamic-table__cell--load${active ? ' dynamic-table__cell--load-active' : ''}`}
               >
+                <span className="dynamic-table__load-bar">
+                  <span className="dynamic-table__load-fill" style={{ width: `${pct}%` }} />
+                </span>
                 {block.length} ({pct}%)
               </span>
             );
