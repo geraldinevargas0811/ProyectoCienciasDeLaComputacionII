@@ -7,10 +7,10 @@ const internalItems = [
   ['Búsqueda por residuos', '/busquedas/interna/residuos'],
 ];
 
-// Árbol del módulo BÚSQUEDAS EXTERNAS con los nombres exactos indicados por el profesor.
+// Árbol del módulo Búsquedas externas.
 const sequentialItems = [
-  ['USANDO BLOQUES', '/busquedas/externa/secuencial/bloques'],
-  ['CON ÍNDICES', '/busquedas/externa/secuencial/indices'],
+  ['Usando bloques', '/busquedas/externa/secuencial/bloques'],
+  ['Con índices', '/busquedas/externa/secuencial/indices'],
 ];
 
 export default function Sidebar({ navigate, path }) {
@@ -33,14 +33,14 @@ export default function Sidebar({ navigate, path }) {
     <button className="sidebar__group sidebar__group--open" onClick={() => setExternalOpen((open) => !open)} aria-expanded={externalOpen}>Búsquedas externas <span>{externalOpen ? '⌄' : '›'}</span></button>
     {externalOpen && (
       <div className="sidebar__items">
-        <button className="sidebar__group" onClick={() => setSequentialOpen((open) => !open)} aria-expanded={sequentialOpen}>BÚSQUEDA SECUENCIAL <span>{sequentialOpen ? '⌄' : '›'}</span></button>
+        <button className="sidebar__group" onClick={() => setSequentialOpen((open) => !open)} aria-expanded={sequentialOpen}>Búsqueda secuencial <span>{sequentialOpen ? '⌄' : '›'}</span></button>
         {sequentialOpen && <div className="sidebar__items sidebar__items--nested">{sequentialItems.map(([label, to]) => <button key={to} className={isActive(to) ? 'active' : ''} onClick={() => visit(to)}>{label}</button>)}</div>}
-        <button className={isActive('/busquedas/externa/binaria') ? 'sidebar__link active' : 'sidebar__link'} onClick={() => visit('/busquedas/externa/binaria')}>BÚSQUEDA BINARIA</button>
-        <button className="sidebar__group" onClick={() => setTransformationOpen((open) => !open)} aria-expanded={transformationOpen}>BÚSQUEDA POR TRANSFORMACIÓN DE CLAVES <span>{transformationOpen ? '⌄' : '›'}</span></button>
-        {transformationOpen && <div className="sidebar__items sidebar__items--nested"><button className={isActive('/busquedas/externa/hash') ? 'active' : ''} onClick={() => visit('/busquedas/externa/hash')}>FUNC HASH</button></div>}
-        <button className="sidebar__group" onClick={() => setOtherOpen((open) => !open)} aria-expanded={otherOpen}>OTRAS BÚSQUEDAS EXTERNAS <span>{otherOpen ? '⌄' : '›'}</span></button>
-        {otherOpen && <div className="sidebar__items sidebar__items--nested"><button className={isActive('/busquedas/externa/dinamicas') ? 'active' : ''} onClick={() => visit('/busquedas/externa/dinamicas')}>BÚSQUEDAS DINÁMICAS POR TRANSFORMACIÓN DE CLAVES</button></div>}
-        <button className={isActive('/busquedas/externa/comparacion') ? 'sidebar__link active' : 'sidebar__link'} onClick={() => visit('/busquedas/externa/comparacion')}>COMPARACIÓN DE MÉTODOS</button>
+        <button className={isActive('/busquedas/externa/binaria') ? 'sidebar__link active' : 'sidebar__link'} onClick={() => visit('/busquedas/externa/binaria')}>Búsqueda binaria</button>
+        <button className="sidebar__group" onClick={() => setTransformationOpen((open) => !open)} aria-expanded={transformationOpen}>Búsqueda por transformación de claves <span>{transformationOpen ? '⌄' : '›'}</span></button>
+        {transformationOpen && <div className="sidebar__items sidebar__items--nested"><button className={isActive('/busquedas/externa/hash') ? 'active' : ''} onClick={() => visit('/busquedas/externa/hash')}>Función hash</button></div>}
+        <button className="sidebar__group" onClick={() => setOtherOpen((open) => !open)} aria-expanded={otherOpen}>Otras búsquedas externas <span>{otherOpen ? '⌄' : '›'}</span></button>
+        {otherOpen && <div className="sidebar__items sidebar__items--nested"><button className={isActive('/busquedas/externa/dinamicas') ? 'active' : ''} onClick={() => visit('/busquedas/externa/dinamicas')}>Búsquedas dinámicas por transformación de claves</button></div>}
+        <button className={isActive('/busquedas/externa/comparacion') ? 'sidebar__link active' : 'sidebar__link'} onClick={() => visit('/busquedas/externa/comparacion')}>Comparación de métodos</button>
       </div>
     )}
 

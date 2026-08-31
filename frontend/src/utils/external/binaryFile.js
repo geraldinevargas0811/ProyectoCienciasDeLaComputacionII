@@ -51,8 +51,8 @@ export function binaryFileSearch(records, target, blockSize) {
       nextLower,
       nextUpper,
       description: cmp === 0
-        ? `Posición inicial ${lower}, final ${upper}. Posición central ${middle} → se lee el BLOQUE ${block} (acceso ${accesses}) y se consulta el registro ${record.key} (${record.name}). ${target} == ${record.key}: COINCIDE.`
-        : `Posición inicial ${lower}, final ${upper}. Posición central ${middle} → se lee el BLOQUE ${block} (acceso ${accesses}) y se consulta el registro ${record.key} (${record.name}). ${target} ${cmp < 0 ? '<' : '>'} ${record.key}: se descarta la mitad ${cmp < 0 ? 'derecha' : 'izquierda'} y queda el intervalo ${nextLower} .. ${nextUpper}.`,
+        ? `Posición inicial ${lower}, final ${upper}. Posición central ${middle} → se lee el Bloque ${block} (acceso ${accesses}) y se consulta el registro ${record.key}. ${target} == ${record.key}: COINCIDE.`
+        : `Posición inicial ${lower}, final ${upper}. Posición central ${middle} → se lee el Bloque ${block} (acceso ${accesses}) y se consulta el registro ${record.key}. ${target} ${cmp < 0 ? '<' : '>'} ${record.key}: se descarta la mitad ${cmp < 0 ? 'derecha' : 'izquierda'} y queda el intervalo ${nextLower} .. ${nextUpper}.`,
     });
 
     if (cmp === 0) {

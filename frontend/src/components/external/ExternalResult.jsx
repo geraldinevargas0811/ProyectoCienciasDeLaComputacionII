@@ -1,18 +1,18 @@
 // Resultado de la búsqueda externa: clave buscada, resultado, posición,
 // bloque/cubeta, comparaciones, accesos y tiempo.
-export default function ExternalResult({ result, timeMs, targetLabel = 'CLAVE BUSCADA' }) {
+export default function ExternalResult({ result, timeMs, targetLabel = 'Clave buscada' }) {
   if (!result) return null;
   const found = Boolean(result.found);
   const location = result.block != null
-    ? `BLOQUE ${result.block}`
+    ? `Bloque ${result.block}`
     : result.bucket != null
-      ? `CUBETA ${result.bucket}`
+      ? `Cubeta ${result.bucket}`
       : '—';
-  return <section className="panel result-panel external-result">
-    <h2>Resultado de la búsqueda</h2>
+  return <section className="panel result-panel">
+    <h2>Resultado</h2>
     <div className="result-grid">
       <div><span>{targetLabel}</span><strong>{result.key ?? result.target ?? '—'}</strong></div>
-      <div><span>Resultado</span><strong>{found ? 'ENCONTRADO' : 'NO ENCONTRADO'}</strong></div>
+      <div><span>Resultado</span><strong>{found ? 'Encontrado' : 'No encontrado'}</strong></div>
       <div><span>Posición</span><strong>{result.position != null ? result.position : '—'}</strong></div>
       <div><span>Bloque/Cubeta</span><strong>{location}</strong></div>
       <div><span>Comparaciones</span><strong>{result.comparisons != null ? result.comparisons : '—'}</strong></div>

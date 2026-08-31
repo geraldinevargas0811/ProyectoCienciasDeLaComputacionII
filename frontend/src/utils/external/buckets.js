@@ -115,7 +115,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
     accesses,
     comparisons,
     directory: snapshot(),
-    description: `CLAVE → FUNCIÓN HASH → CUBETA: ${calc.text}. La clave ${target} debe localizarse en la CUBETA ${p}.`,
+    description: `CLAVE → FUNCIÓN HASH → Cubeta: ${calc.text}. La clave ${target} debe localizarse en la Cubeta ${p}.`,
   });
 
   for (let bi = 0; bi < cubeta.blocks.length; bi += 1) {
@@ -128,7 +128,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
       accesses,
       comparisons,
       directory: snapshot(),
-      description: `Acceso ${accesses} a disco: se lee el bloque ${blockName} de la CUBETA ${p}.`,
+      description: `Acceso ${accesses} a disco: se lee el bloque ${blockName} de la Cubeta ${p}.`,
     });
 
     const block = cubeta.blocks[bi];
@@ -151,7 +151,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
             accesses,
             comparisons,
             directory: snapshot(),
-            description: `Comparación ${comparisons}: ${block[si]} == ${target}: COINCIDE. Clave encontrada en la CUBETA ${p}, bloque ${blockName}, posición ${si + 1} dentro del bloque.`,
+            description: `Comparación ${comparisons}: ${block[si]} == ${target}: COINCIDE. Clave encontrada en la Cubeta ${p}, bloque ${blockName}, posición ${si + 1} dentro del bloque.`,
           }],
         };
       }
@@ -182,7 +182,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
       accesses,
       comparisons,
       directory: snapshot(),
-      description: `Se recorrió la CUBETA ${p} y sus bloques de desbordamiento (${accesses} accesos, ${comparisons} comparaciones): la clave ${target} no se encuentra en el archivo.`,
+      description: `Se recorrió la Cubeta ${p} y sus bloques de desbordamiento (${accesses} accesos, ${comparisons} comparaciones): la clave ${target} no se encuentra en el archivo.`,
     }],
   };
 }

@@ -18,5 +18,11 @@ export default function HashTableViz({ size, byPosition, activePosition, foundPo
       </div>
     );
   }
-  return <div className="hash-table-viz">{rows}</div>;
+  return <div className="hash-table-viz">
+    {rows}
+    <div className="viz-legend">
+      <span><i className="legend__chip legend__chip--compare" /> Cubeta consultada</span>
+      <span><i className="legend__chip legend__chip--collision" /> Colisión (más de una clave)</span>
+    </div>
+  </div>;
 }

@@ -177,7 +177,7 @@ export function runDynamicSim({ keys, initial, mode = 'total', high = 0.75, low 
       accesses,
       buckets: snapshot(),
       density: currentDensity.toFixed(2),
-      description: `Clave ${key}: H(K) = (K mod ${M}) + 1 = ${position}. Se almacena en la CUBETA ${position}. Densidad actual: ${currentDensity.toFixed(2)}.`,
+      description: `Clave ${key}: H(K) = (K mod ${M}) + 1 = ${position}. Se almacena en la Cubeta ${position}. Densidad actual: ${currentDensity.toFixed(2)}.`,
     });
     if (currentDensity >= high) expand();
   });

@@ -68,11 +68,11 @@ function conversionBases(key, m) {
 }
 
 export const HASH_FUNCTIONS = {
-  modulo: { label: 'FUNCIÓN MÓDULO', short: 'Módulo', fn: modulo },
-  cuadrado: { label: 'FUNCIÓN CUADRADO', short: 'Cuadrado', fn: cuadrado },
-  truncamiento: { label: 'FUNCIÓN TRUNCAMIENTO', short: 'Truncamiento', fn: truncamiento },
-  plegamiento: { label: 'FUNCIÓN PLEGAMIENTO', short: 'Plegamiento', fn: plegamiento },
-  conversion: { label: 'FUNCIÓN CONVERSIÓN DE BASES', short: 'Conversión de bases', fn: conversionBases },
+  modulo: { label: 'Función módulo', short: 'Módulo', fn: modulo },
+  cuadrado: { label: 'Función cuadrado', short: 'Cuadrado', fn: cuadrado },
+  truncamiento: { label: 'Función truncamiento', short: 'Truncamiento', fn: truncamiento },
+  plegamiento: { label: 'Función plegamiento', short: 'Plegamiento', fn: plegamiento },
+  conversion: { label: 'Función conversión de bases', short: 'Conversión de bases', fn: conversionBases },
 };
 
 export const HASH_ORDER = ['modulo', 'cuadrado', 'truncamiento', 'plegamiento', 'conversion'];

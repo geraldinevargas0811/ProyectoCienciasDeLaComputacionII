@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import { PageHeader } from '../../../components/common/UI';
+import { Button, PageHeader } from '../../../components/common/UI';
+import { InsertDataPanel } from '../../../components/search/SearchPanels';
 import HashTableViz from '../../../components/external/HashTableViz';
 import BucketDirectory from '../../../components/external/BucketDirectory';
 import ExplanationPanel from '../../../components/external/ExplanationPanel';
 import ExternalResult from '../../../components/external/ExternalResult';
-import StepControls from '../../../components/external/StepControls';
 import Tabs from '../../../components/external/Tabs';
 import { useStepPlayer } from '../../../components/external/useStepPlayer';
-import { generateKeys } from '../../../utils/external/dataGenerators';
+import { generateKeys, validKey, keyLengthError } from '../../../utils/external/dataGenerators';
 import { computeHashTable, HASH_ORDER } from '../../../utils/external/hashFunctions';
-import { buildBucketFile, searchBucketFile, collisionsByPosition } from '../../../utils/external/buckets';
+import { buildBucketFile, searchBucketFile } from '../../../utils/external/buckets';
 
 const digitOptions = [
   ['1', '1 dígito'],
@@ -18,38 +18,14 @@ const digitOptions = [
 ];
 const digitsOnly = (value) => String(value ?? '').replace(/\D/g, '');
 
-// Panel de "claves" compartido por las funciones hash y las colisiones.
-function KeyControls({ size, onSizeChange, digits, onDigitsChange, keyCount, onKeyCountChange, onGenerate, onManualInsert, onClear, capacity, onCapacityChange, message, onNotify, preview = '' }) {
-  const [manual, setManual] = useState('');
-  const run = async (handler) => {
-    const response = await handler?.();
-    if (response) {
-      onNotify?.(response);
-      if (response.type === 'success') setManual('');
-    }
-  };
-  return <section className="panel">
-    <h2>Claves del archivo hasheado</h2>
-    <div className="form-grid">
-      <label>M (nº de posiciones/cubetas)<input type="number" min="2" step="1" value={size} onChange={(event) => onSizeChange(digitsOnly(event.target.value))} /></label>
-      <label>Dígitos de las claves<select value={digits} onChange={(event) => onDigitsChange(event.target.value)}>{digitOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
-      <label>Nº de claves a generar<input type="number" min="1" step="1" value={keyCount} onChange={(event) => onKeyCountChange(digitsOnly(event.target.value))} /></label>
-      {onCapacityChange && <label>Capacidad por cubeta (C)<input type="number" min="1" step="1" value={capacity} onChange={(event) => onCapacityChange(digitsOnly(event.target.value))} /></label>}
-    </div>
-    <div className="data-panel__actions">
-      <button type="button" className="button button--primary" onClick={() => run(onGenerate)}>Generar claves</button>
-      <button type="button" className="button button--secondary" onClick={() => run(onClear)}>Limpiar claves</button>
-    </div>
-    <div className="operation">
-      <label>Ingresar clave manual<input inputMode="numeric" placeholder="Clave numérica" value={manual} onChange={(event) => setManual(digitsOnly(event.target.value))} /></label>
-      <button type="button" className="button button--secondary" disabled={!manual} onClick={() => run(() => onManualInsert?.(manual))}>Insertar</button>
-    </div>
-    {message && <p className={`validation-message validation-message--${message.type}`} role="status">{message.text}</p>}
-    <div className="keys-panel"><small>Claves: {preview || '—'}</small></div>
-  </section>;
-}
+const HASH_LABELS = {
+  modulo: 'Función módulo',
+  cuadrado: 'Función cuadrado',
+  truncamiento: 'Función truncamiento',
+  plegamiento: 'Función plegamiento',
+  conversion: 'Función conversión de bases',
+};
 
-// La vista previa de claves necesita el estado real; se ajusta desde el padre.
 export default function FuncHashPage() {
   const [tab, setTab] = useState('modulo');
   const [size, setSize] = useState('10');
@@ -57,59 +33,72 @@ export default function FuncHashPage() {
   const [keyCount, setKeyCount] = useState('10');
   const [capacity, setCapacity] = useState('2');
   const [keys, setKeys] = useState([]);
-  const [message, setMessage] = useState(null);
+  const [created, setCreated] = useState(false);
+  const [createMessage, setCreateMessage] = useState(null);
+  const [actionMessage, setActionMessage] = useState(null);
 
-  const [hashResult, setHashResult] = useState(null);   // { table, steps } para funciones y colisiones
-  const [bucketData, setBucketData] = useState(null);   // { directory, steps, collisions } para cubetas
-  const [searchData, setSearchData] = useState(null);   // { result, timeMs, target }
+  const [hashResult, setHashResult] = useState(null);
+  const [bucketData, setBucketData] = useState(null);
+  const [searchData, setSearchData] = useState(null);
   const [collisionFunc, setCollisionFunc] = useState('modulo');
 
   const isFunctionTab = !['cubetas', 'colisiones'].includes(tab);
   const activeFunction = isFunctionTab ? tab : collisionFunc;
+  const emptyDirectory = Array.from({ length: Number(size) }, () => ({ blocks: [[]] }));
 
   const shownSteps = searchData ? searchData.result.steps : (bucketData ? bucketData.steps : (hashResult ? hashResult.steps : []));
   const total = shownSteps.length;
   const player = useStepPlayer(total);
   const step = shownSteps[player.stepIndex];
 
-  // Cambiar de pestaña limpia los resultados de la vista anterior.
   useEffect(() => {
     setHashResult(null);
     setBucketData(null);
     setSearchData(null);
   }, [tab]);
 
-  // Generación y validación de claves (común a todas las pestañas).
+  const createFile = () => {
+    const M = Number(size);
+    if (!Number.isInteger(M) || M < 2) { setCreateMessage({ type: 'error', text: 'Indica un tamaño válido para la estructura.' }); return; }
+    setCreated(true);
+    setKeys([]);
+    setHashResult(null);
+    setBucketData(null);
+    setSearchData(null);
+    setCreateMessage({ type: 'success', text: 'Estructura creada y vacía: lista para el ingreso de claves.' });
+  };
+
   const addKey = (raw) => {
+    if (!created) return { type: 'error', text: 'Crea la estructura antes de ingresar claves.' };
     const key = String(raw ?? '').replace(/\D/g, '');
-    if (!key) return { type: 'error', text: 'Escribe una clave numérica.' };
-    if (key.length > Number(digits)) return { type: 'error', text: `La clave debe tener hasta ${digits} dígitos.` };
-    if (keys.includes(key)) return { type: 'error', text: 'La clave ya fue ingresada.' };
+    if (!key) return { type: 'error', text: 'Indica una clave a ingresar.' };
+    if (!validKey(key, digits)) return keyLengthError('insert', digits);
+    if (keys.includes(key)) return { type: 'error', text: 'La estructura no admite claves repetidas.' };
     setKeys((current) => [...current, key]);
     setHashResult(null); setSearchData(null);
-    return { type: 'success', text: `Clave ${key} registrada.` };
+    return { type: 'success', text: `Clave ${key} añadida: revisa las claves a ingresar.` };
   };
 
   const clearKeys = () => {
     setKeys([]);
     setHashResult(null); setBucketData(null); setSearchData(null);
-    return { type: 'success', text: 'Claves borradas.' };
+    return { type: 'success', text: 'Claves vacías: lista para ingresar nuevas claves.' };
   };
 
   const generateRandom = () => {
-    const count = Number(keyCount);
-    const existing = keys.length;
-    const generated = generateKeys(count, Number(digits));
-    if (!generated) return { type: 'error', text: 'No es posible generar claves únicas con esos dígitos.' };
+    if (!created) return { type: 'error', text: 'Crea la estructura antes de generar claves.' };
+    const target = Math.max(0, (Number(keyCount) || 0) - keys.length);
+    if (target === 0) return { type: 'success', text: 'Ya tienes las claves a ingresar.' };
+    const generated = generateKeys(target, Number(digits));
+    if (!generated) return { type: 'error', text: `No es posible generar ${target} claves únicas de ${digits} dígitos.` };
     const merged = [...keys, ...generated.filter((k) => !keys.includes(k))];
     setKeys(merged);
     setHashResult(null); setBucketData(null); setSearchData(null);
-    return { type: 'success', text: `${generated.length} claves generadas${existing ? ' (se agregaron a las existentes)' : ''}.` };
+    return { type: 'success', text: `${generated.length} claves generadas y añadidas: revisa las claves a ingresar.` };
   };
 
-  // Pestaña de FUNCIÓN HASH: calcular posiciones y detectar colisiones.
   const calculateHash = () => {
-    if (keys.length === 0) return { type: 'error', text: 'Genera o ingresa claves antes de calcular.' };
+    if (keys.length === 0) return { type: 'error', text: 'Ingresa claves antes de calcular las posiciones.' };
     const M = Number(size);
     const table = computeHashTable(keys, M, activeFunction);
     const steps = table.results.map((r) => ({ type: 'hash', key: r.key, position: r.position, text: r.text }));
@@ -121,77 +110,112 @@ export default function FuncHashPage() {
     setHashResult({ table, steps });
     setSearchData(null);
     setBucketData(null);
-    return { type: 'success', text: `${keys.length} claves transformadas. Revisa el paso a paso y las colisiones.` };
+    return { type: 'success', text: 'Posiciones calculadas: revisa la transformación paso a paso.' };
   };
 
-  // Pestaña CUBETAS: construir el archivo de cubetas.
   const buildBuckets = () => {
-    if (keys.length === 0) return { type: 'error', text: 'Genera o ingresa claves antes de construir el archivo.' };
+    if (keys.length === 0) return { type: 'error', text: 'Ingresa claves antes de construir la estructura de cubetas.' };
     const built = buildBucketFile({ keys, size: Number(size), capacity: Number(capacity) || 2, hashFunction: activeFunction });
     setBucketData(built);
     setHashResult(null);
     setSearchData(null);
-    return { type: 'success', text: `Archivo de cubetas construido: ${built.collisions.length} desbordamiento(s).` };
+    return { type: 'success', text: 'Estructura de cubetas construida: revisa el directorio paso a paso.' };
   };
 
-  // Pestaña CUBETAS: buscar una clave dentro de las cubetas.
   const searchBucket = (raw) => {
     const target = String(raw ?? '').trim();
-    if (!target) return { type: 'error', text: 'Escribe la clave a buscar.' };
-    if (!bucketData) return { type: 'error', text: 'Construye primero el archivo de cubetas (presiona el botón de la pestaña CUBETAS).' };
+    if (!target) return { type: 'error', text: 'Indica la clave a buscar.' };
+    if (!bucketData) return { type: 'error', text: 'Construye la estructura de cubetas antes de buscar.' };
+    if (!validKey(target, digits)) return keyLengthError('search', digits);
     const t0 = performance.now();
     const result = searchBucketFile(target, { directory: bucketData.directory, size: Number(size), capacity: Number(capacity) || 2, hashFunction: activeFunction });
     setSearchData({ result, target, timeMs: Math.max(1, Math.round(performance.now() - t0)) });
-    return { type: result.found ? 'success' : 'error', text: result.found ? `Clave ${target} encontrada en la CUBETA ${result.position}.` : `Clave ${target} no encontrada (se recorrió la CUBETA ${result.position}).` };
+    return { type: result.found ? 'success' : 'error', text: result.found ? `Clave ${target} encontrada en la Cubeta ${result.position}.` : `La clave ${target} no fue encontrada en la estructura.` };
   };
 
-  // Controles que comparten todas las pestañas (mostrados durante la edición).
-  const controls = (
-    <KeyControls
-      size={size} onSizeChange={setSize}
-      digits={digits} onDigitsChange={(v) => { setDigits(v); setKeys([]); }}
-      keyCount={keyCount} onKeyCountChange={setKeyCount}
-      capacity={capacity} onCapacityChange={tab === 'cubetas' ? setCapacity : null}
-      onGenerate={generateRandom} onManualInsert={addKey} onClear={clearKeys}
-      message={message} onNotify={setMessage}
-      preview={keys.join(' ')}
-    />
-  );
+  const meta = [];
+  if (step?.type === 'hash') {
+    meta.push(`Cubeta: ${step.position}`);
+  } else if (['init', 'insert', 'done'].includes(step?.type)) {
+    if (step?.position != null) meta.push(`Cubeta: ${step.position}`);
+    if (step?.type === 'insert') meta.push(`Desbordamientos: ${step.collisions}`);
+    meta.push(`Accesos: ${step?.accesses ?? 0}`);
+  } else {
+    if (step?.position != null) meta.push(`Cubeta: ${step.position}`);
+    meta.push(`Accesos: ${step?.accesses ?? 0}`);
+    meta.push(`Comparaciones: ${step?.comparisons ?? 0}`);
+  }
+  const currentKey = step?.key ?? (searchData ? searchData.target : null);
 
-  const currentStepText = step?.text ?? step?.description;
+  const onAction = async (handler) => {
+    const response = await handler();
+    if (response) setActionMessage(response);
+  };
 
   return (
     <>
-      <PageHeader title="BÚSQUEDA POR TRANSFORMACIÓN DE CLAVES" eyebrow="FUNC HASH" description="Búsqueda mediante funciones hash: cada clave se transforma en una posición/cubeta del archivo con la función seleccionada. Si dos claves producen la misma posición se produce una colisión." />
+      <PageHeader title="Búsqueda por transformación de claves" />
       <Tabs
         tabs={[
-          ...HASH_ORDER.map((fn) => [fn, { modulo: 'FUNCIÓN MÓDULO', cuadrado: 'FUNCIÓN CUADRADO', truncamiento: 'FUNCIÓN TRUNCAMIENTO', plegamiento: 'FUNCIÓN PLEGAMIENTO', conversion: 'FUNCIÓN CONVERSIÓN DE BASES' }[fn]]),
-          ['cubetas', 'CUBETAS'],
-          ['colisiones', 'COLISIONES'],
+          ...HASH_ORDER.map((fn) => [fn, HASH_LABELS[fn]]),
+          ['cubetas', 'Cubetas'],
+          ['colisiones', 'Colisiones'],
         ]}
         active={tab}
         onChange={setTab}
       />
 
-      <div className="external-grid">
-        <div className="external-grid__controls">{controls}</div>
-        <div className="external-grid__visual">
-          <div className="data-panel__actions">
-            {isFunctionTab && <button type="button" className="button button--primary" onClick={async () => { const response = await calculateHash(); setMessage(response); }}>Calcular posiciones</button>}
-            {tab === 'cubetas' && <button type="button" className="button button--primary" onClick={async () => { const response = await buildBuckets(); setMessage(response); }}>Construir archivo de cubetas</button>}
-          </div>
+      <div className="lab-layout">
+        <div className="lab-layout__controls">
+          <section className="panel">
+            <h2>Crear estructura</h2>
+            <div className="form-grid">
+              <label>M (nº de posiciones/cubetas)<input type="number" min="2" step="1" inputMode="numeric" value={size} onChange={(event) => setSize(digitsOnly(event.target.value))} /></label>
+              <label>Dígitos de las claves<select value={digits} onChange={(event) => { setDigits(event.target.value); setKeys([]); }}>{digitOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+              <label>Nº de claves a generar<input type="number" min="1" step="1" inputMode="numeric" value={keyCount} onChange={(event) => setKeyCount(digitsOnly(event.target.value))} /></label>
+              {tab === 'cubetas' && <label>Capacidad por cubeta (C)<input type="number" min="1" step="1" inputMode="numeric" value={capacity} onChange={(event) => setCapacity(digitsOnly(event.target.value))} /></label>}
+            </div>
+            {createMessage && <p className={`validation-message validation-message--${createMessage.type}`} role="status">{createMessage.text}</p>}
+            <Button onClick={createFile}>Crear estructura</Button>
+          </section>
+
+          {created && <InsertDataPanel fieldLabel="Clave" insertedCount={keys.length} total={Number(keyCount) || 0} onInsert={addKey} onGenerate={generateRandom} />}
+
+          {keys.length > 0 && (
+            <section className="panel keys-panel">
+              <h2>Claves a ingresar</h2>
+              <p>{keys.join(' → ')}</p>
+              <small>Se transformarán en exactamente este orden con la función seleccionada.</small>
+            </section>
+          )}
+
+          <section className="panel">
+            <h2>Operaciones</h2>
+            {isFunctionTab && <Button onClick={() => onAction(calculateHash)}>Calcular posiciones</Button>}
+            {tab === 'cubetas' && <Button onClick={() => onAction(buildBuckets)}>Construir estructura de cubetas</Button>}
+            {tab === 'cubetas' && <CubetaSearch disabled={!bucketData} maxLength={Number(digits)} onSearch={(target) => { const r = searchBucket(target); setActionMessage(r); return r; }} />}
+            <Button variant="secondary" className="operation-clear" onClick={() => { const r = clearKeys(); setActionMessage(r); }}>Limpiar</Button>
+            {actionMessage && <p className={`validation-message validation-message--${actionMessage.type}`} role="status">{actionMessage.text}</p>}
+          </section>
+
+          {tab === 'cubetas' && searchData && <ExternalResult result={{ ...searchData.result, key: searchData.target }} timeMs={searchData.timeMs} />}
+        </div>
+
+        <div className="lab-layout__visual">
           {isFunctionTab && (
             <section className="panel">
-              <h2>CLAVE → FUNCIÓN HASH → POSICIÓN/CUBETA {hashResult?.table.collisions.length > 0 && <small className="hash-warn">({hashResult.table.collisions.length} colisión(es))</small>}</h2>
+              <h2>Visualización de la tabla hash</h2>
               {hashResult ? (
                 <HashTableViz size={Number(size)} byPosition={hashResult.table.byPosition} activePosition={step?.type === 'hash' ? step.position : undefined} />
-              ) : <div className="visualization-placeholder"><span>⌗</span></div>}
+              ) : created ? (
+                <HashTableViz size={Number(size)} />
+              ) : <div className="visualization-placeholder"><span>⌗</span><p>Crea la estructura y calcula las posiciones para comenzar.</p></div>}
             </section>
           )}
 
           {tab === 'cubetas' && (
             <section className="panel">
-              <h2>Directorio de cubetas</h2>
+              <h2>Visualización de la estructura de cubetas</h2>
               {bucketData ? (
                 <BucketDirectory
                   directory={step?.directory ?? bucketData.directory}
@@ -201,7 +225,9 @@ export default function FuncHashPage() {
                   activeSlot={step?.slot}
                   found={step?.type === 'found'}
                 />
-              ) : <div className="visualization-placeholder"><span>▦</span></div>}
+              ) : created ? (
+                <BucketDirectory directory={emptyDirectory} capacity={Number(capacity) || 2} />
+              ) : <div className="visualization-placeholder"><span>▦</span><p>Construye la estructura de cubetas para comenzar.</p></div>}
               {bucketData && !searchData && bucketData.collisions.length > 0 && (
                 <div className="panel__aside">
                   <strong>{bucketData.collisions.length} desbordamiento(s)</strong>
@@ -215,11 +241,11 @@ export default function FuncHashPage() {
             <section className="panel">
               <h2>Colisiones generadas por la función</h2>
               <div className="operation">
-          <label>Probar con la función<select value={collisionFunc} onChange={(event) => { setCollisionFunc(event.target.value); setHashResult(null); setSearchData(null); }}>
-            {HASH_ORDER.map((fn) => <option key={fn} value={fn}>{({ modulo: 'FUNCIÓN MÓDULO', cuadrado: 'FUNCIÓN CUADRADO', truncamiento: 'FUNCIÓN TRUNCAMIENTO', plegamiento: 'FUNCIÓN PLEGAMIENTO', conversion: 'FUNCIÓN CONVERSIÓN DE BASES' })[fn]}</option>)}
-          </select></label>
-          <button type="button" className="button button--primary" onClick={async () => { const response = await calculateHash(); setMessage(response); }}>Detectar colisiones</button>
-        </div>
+                <label>Probar con la función<select value={collisionFunc} onChange={(event) => { setCollisionFunc(event.target.value); setHashResult(null); setSearchData(null); }}>
+                  {HASH_ORDER.map((fn) => <option key={fn} value={fn}>{HASH_LABELS[fn]}</option>)}
+                </select></label>
+                <Button onClick={() => onAction(calculateHash)}>Detectar colisiones</Button>
+              </div>
               {hashResult ? (
                 <>
                   <HashTableViz size={Number(size)} byPosition={hashResult.table.byPosition} activePosition={step?.type === 'hash' ? step.position : undefined} />
@@ -236,57 +262,30 @@ export default function FuncHashPage() {
                     </div>
                   ) : <p className="validation-message validation-message--success">No se detectaron colisiones con las claves actuales: cada clave cae en una posición distinta. Agrega más claves o cambia el tamaño M para provocarlas.</p>}
                 </>
-              ) : <div className="visualization-placeholder"><span>⌗</span></div>}
+              ) : created ? (
+                <HashTableViz size={Number(size)} />
+              ) : <div className="visualization-placeholder"><span>⌗</span><p>Ingresa claves y detecta las colisiones para comenzar.</p></div>}
             </section>
-          )}
-
-          {tab === 'cubetas' && (
-            <section className="panel">
-              <h2>Buscar clave en las cubetas</h2>
-              <CubetaSearch onSearch={searchBucket} disabled={!bucketData} message={message} />
-            </section>
-          )}
-
-          {tab === 'cubetas' && searchData && (
-            <ExternalResult result={{ ...searchData.result, key: searchData.target }} timeMs={searchData.timeMs} />
           )}
 
           {shownSteps.length > 0 && (
-            <>
-              <ExplanationPanel
-                index={player.stepIndex}
-                total={total}
-                playing={player.playing}
-                description={currentStepText}
-                chips={[
-                  ['ACCIÓN', step?.type === 'done' && tab === 'cubetas' ? 'archivo construido' : ({ insert: 'inserción', hash: 'transformación', access: 'acceso a disco', compare: 'comparación', start: 'inicio', found: 'encontrado', notfound: 'no encontrado', done: 'fin' }[step?.type] ?? step?.type ?? '')],
-                  ['CUBETA', step?.position ?? '—'],
-                  ['Accesos', step?.accesses ?? 0],
-                  ['Comparaciones', step?.comparisons ?? 0],
-                ]}
-              />
-              <StepControls {...player} />
-            </>
+            <ExplanationPanel
+              {...player}
+              currentKey={currentKey}
+              description={step?.text ?? step?.description}
+              meta={meta}
+            />
           )}
-          {shownSteps.length === 0 && <div className="placeholder-hint">
-            {tab === 'cubetas'
-              ? 'Genera claves y presiona el botón de la pestaña para construir el directorio de cubetas; luego puedes buscar una clave.'
-              : 'Genera claves y calcula las posiciones para ver el paso a paso y las colisiones.'}
-          </div>}
         </div>
       </div>
     </>
   );
 }
 
-function CubetaSearch({ onSearch, disabled, message }) {
+function CubetaSearch({ onSearch, disabled, maxLength = null }) {
   const [target, setTarget] = useState('');
-  const [msg, setMsg] = useState(null);
-  return <div>
-    <div className="operation">
-      <label>Clave a buscar<input inputMode="numeric" placeholder="Clave" value={target} onChange={(event) => setTarget(digitsOnly(event.target.value))} /></label>
-      <button type="button" className="button button--primary" disabled={disabled || !target} onClick={async () => { const response = await onSearch(target); if (response) setMsg(response); }}>Buscar</button>
-    </div>
-    {(message || msg) && <p className={`validation-message validation-message--${(message || msg).type}`} role="status">{(message || msg).text}</p>}
+  return <div className="operation">
+    <label>Buscar<input inputMode="numeric" maxLength={maxLength} placeholder="Clave" value={target} onChange={(event) => setTarget(digitsOnly(event.target.value))} /></label>
+    <Button variant="secondary" disabled={disabled || !target} onClick={async () => { const r = await onSearch(target); if (r && r.type === 'success') setTarget(''); }}>Buscar</Button>
   </div>;
 }

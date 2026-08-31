@@ -1,8 +1,5 @@
 // Generación de datos para búsquedas externas.
-// Los "registros" son objetos { key, name }: la clave numérica es la que se
-// busca; el nombre solo da contexto visual al registro dentro del archivo.
-
-const NAMES = ['Ana', 'Bruno', 'Carla', 'Diego', 'Estela', 'Fabián', 'Gina', 'Hugo', 'Irene', 'Jorge', 'Karina', 'Luis', 'Marta', 'Nico', 'Olga', 'Pablo', 'Queta', 'Rita', 'Sofía', 'Tomás', 'Úrsula', 'Víctor', 'Wendy', 'Ximena', 'Yago', 'Zulema'];
+// Los "registros" son objetos { key }: la clave numérica es la que se busca.
 
 /** Genera `count` claves numéricas únicas con exactamente `digits` dígitos. */
 export function generateKeys(count, digits) {
@@ -14,9 +11,9 @@ export function generateKeys(count, digits) {
   return [...generated];
 }
 
-/** Convierte una lista de claves en registros con nombre asociado. */
+/** Convierte una lista de claves en registros (cada registro es { key }). */
 export function makeRecords(keys) {
-  return keys.map((key, index) => ({ key: String(key), name: NAMES[index % NAMES.length] }));
+  return keys.map((key) => ({ key: String(key) }));
 }
 
 /** Crea `count` registros aleatorios (claves únicas). */
@@ -25,7 +22,13 @@ export function randomRecords(count, digits) {
   return keys ? makeRecords(keys) : null;
 }
 
-/** Nombre automático para un registro ingresado manualmente. */
-export function nameFor(records) {
-  return NAMES[(records?.length ?? 0) % NAMES.length];
+/** Verifica que un valor sea numérico y tenga exactamente `digits` dígitos. */
+export function validKey(value, digits) {
+  return new RegExp(`^\\d{${Number(digits)}}$`).test(String(value ?? ''));
+}
+
+/** Texto de error para una clave que no respeta la cantidad de dígitos. */
+export function keyLengthError(type, digits) {
+  const noun = type === 'search' ? 'La clave a buscar' : 'La clave';
+  return { type: 'error', text: `${noun} debe ser numérica y tener exactamente ${digits} dígito${digits === '1' ? '' : 's'}.` };
 }

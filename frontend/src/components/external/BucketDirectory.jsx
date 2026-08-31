@@ -8,7 +8,7 @@ export default function BucketDirectory({ directory, capacity, activeBucket, act
       const bucketNumber = index + 1;
       const isActive = activeBucket === bucketNumber;
       return <div key={bucketNumber} className={`bucket${isActive ? ' bucket--active' : ''}`}>
-        <div className="bucket__head">CUBETA {bucketNumber}</div>
+        <div className="bucket__head">Cubeta {bucketNumber}</div>
         {cubeta.blocks.map((block, bi) => (
           <div key={bi} className={`bucket-block${isActive && activeBlock === bi ? ' bucket-block--active' : ''}`}>
             {bi > 0 && <span className="bucket-block__over">⟶ desbordamiento</span>}
@@ -27,5 +27,11 @@ export default function BucketDirectory({ directory, capacity, activeBucket, act
         <div className="bucket__load">{cubeta.blocks.flat().length} registro(s)</div>
       </div>;
     })}
+    <div className="viz-legend">
+      <span><i className="legend__chip legend__chip--bucket" /> Cubeta destino</span>
+      <span><i className="legend__chip legend__chip--block" /> Bloque leyéndose</span>
+      <span><i className="legend__chip legend__chip--compare" /> Registro comparado</span>
+      <span><i className="legend__chip legend__chip--found" /> Registro encontrado</span>
+    </div>
   </div>;
 }

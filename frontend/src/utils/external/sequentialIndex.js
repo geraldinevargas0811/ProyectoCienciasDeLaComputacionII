@@ -1,21 +1,23 @@
 // BÚSQUEDA SECUENCIAL — CON ÍNDICES
-// Existen dos archivos: el archivo principal de datos (organizado/ordenado,
-// dividido en bloques) y un archivo de índices con una entrada por BLOQUE.
-// Cada entrada del índice guarda el primer y el último registro del bloque y
-// la dirección (número de bloque) donde continúa la búsqueda.
+// La estructura principal es una lista ordenada dividida en bloques y, además,
+// se construye un índice con la ÚLTIMA clave de cada bloque como referencia.
 //
-// El índice se consulta en memoria (no genera acceso a disco) para localizar
-// la posición aproximada; a partir de ahí se lee el bloque indicado y se
-// realiza la búsqueda secuencial sobre el archivo de datos.
+//   Bloque 1: [3, 7, 12, 18]   →   18 → Bloque 1
+//   Bloque 2: [25, 31, 40, 46] →   46 → Bloque 2
+//   Bloque 3: [52, 60, 68, 75] →   75 → Bloque 3
+//
+// Para buscar una clave se recorre el índice de forma SECUENCIAL hasta
+// encontrar la entrada cuya última clave es mayor o igual que la buscada (esa
+// entrada indica el bloque candidato). Luego se hace una búsqueda SECUENCIAL
+// normal únicamente dentro de ese bloque. No se usa búsqueda binaria.
 
 import { splitBlocks } from './fileBlocks';
 
-/** Construye el archivo de índices: una entrada por bloque. */
+/** Construye la estructura de índices: una entrada por bloque. */
 export function buildSparseIndex(records, blockSize) {
   const blocks = splitBlocks(records, blockSize);
   return blocks.map((block, index) => ({
     block: index + 1,
-    first: block[0]?.key ?? null,
     last: block[block.length - 1]?.key ?? null,
     count: block.length,
     address: index + 1,
@@ -23,13 +25,14 @@ export function buildSparseIndex(records, blockSize) {
 }
 
 /**
- * Busca `target` en un archivo ordenado usando el archivo de índices.
- * Devuelve los pasos con las consultas al índice, los accesos al archivo de
- * datos y las comparaciones sobre los bloques.
+ * Busca `target` en una estructura ordenada usando la estructura de índices.
+ * Recorre el índice secuencialmente y luego el bloque candidato.
  */
 export function sequentialIndexSearch(sortedRecords, target, blockSize) {
   const blocks = splitBlocks(sortedRecords, blockSize);
   const index = buildSparseIndex(sortedRecords, blockSize);
+  const values = sortedRecords.map((record) => record.key);
+
   let indexReads = 0;
   let accesses = 0;
   let comparisons = 0;
@@ -37,24 +40,22 @@ export function sequentialIndexSearch(sortedRecords, target, blockSize) {
 
   steps.push({
     type: 'start',
-    description: `Archivo ordenado con N = ${sortedRecords.length} registros en ${blocks.length} bloque(s) (BLOQUE = √N = ${blockSize}). Se construyó el ARCHIVO DE ÍNDICES con ${index.length} entrada(s), una por bloque. Las consultas al índice se hacen en memoria.`,
+    description: `Lista ordenada: ${values.join(', ')} (N = ${values.length}). Se divide en ${blocks.length} bloque(s) de ${blockSize} registro(s) y el índice guarda la última clave de cada bloque: ${index.map((entry) => `${entry.last} → Bloque ${entry.address}`).join(', ')}.`,
   });
 
-  // 1) Consultar el índice en memoria para localizar la posición aproximada.
-  let candidate = 0;
-  let located = false;
+  // 1) Recorrer el índice secuencialmente para localizar el bloque candidato.
+  let candidate = null;
   for (let i = 0; i < index.length; i += 1) {
     indexReads += 1;
     const entry = index[i];
-    if (Number(entry.last) >= Number(target)) {
+    if (Number(target) <= Number(entry.last)) {
       candidate = i;
-      located = true;
       steps.push({
         type: 'index',
         entry: i,
         indexReads,
         candidate: i,
-        description: `Consulta ${indexReads} al índice: entrada ${i + 1} [${entry.first}..${entry.last} → BLOQUE ${entry.address}]. Como la última clave del bloque (${entry.last}) es ≥ ${target}, la clave podría estar en el BLOQUE ${entry.address}: posición aproximada localizada.`,
+        description: `Consulta ${indexReads} al índice: entrada ${i + 1} [${entry.last} → Bloque ${entry.address}]. ¿${target} ≤ ${entry.last}? Sí: la clave ${target} podría estar en el Bloque ${entry.address}. Se selecciona ese bloque.`,
       });
       break;
     }
@@ -63,61 +64,77 @@ export function sequentialIndexSearch(sortedRecords, target, blockSize) {
       entry: i,
       indexReads,
       candidate: null,
-      description: `Consulta ${indexReads} al índice: entrada ${i + 1} [${entry.first}..${entry.last} → BLOQUE ${entry.address}]. La última clave ${entry.last} es menor que ${target}: se descarta y se continúa con la siguiente entrada.`,
+      description: `Consulta ${indexReads} al índice: entrada ${i + 1} [${entry.last} → Bloque ${entry.address}]. ¿${target} ≤ ${entry.last}? No: ${target} es mayor que ${entry.last}, se continúa con la siguiente entrada.`,
     });
   }
-  if (!located) candidate = blocks.length - 1;
-
-  // 2) Búsqueda secuencial sobre el archivo de datos a partir del bloque candidato.
-  for (let b = candidate; b < blocks.length; b += 1) {
-    accesses += 1;
-    const keysInBlock = blocks[b].map((record) => record.key).join(', ');
+  if (candidate == null) {
+    candidate = blocks.length - 1;
     steps.push({
-      type: 'access',
-      block: b,
+      type: 'index',
+      entry: candidate,
+      indexReads,
       candidate,
+      description: `${target} es mayor que la última clave del último bloque (${index[index.length - 1].last}): la clave solo podría estar en el último bloque. Se selecciona el Bloque ${candidate + 1}.`,
+    });
+  }
+
+  // 2) Búsqueda secuencial dentro del bloque candidato.
+  accesses += 1;
+  const keysInBlock = blocks[candidate].map((record) => record.key).join(', ');
+  steps.push({
+    type: 'access',
+    block: candidate,
+    candidate,
+    accesses,
+    comparisons,
+    description: `Acceso ${accesses} a disco: se lee el Bloque ${candidate + 1} (registros: ${keysInBlock}).`,
+  });
+
+  for (let j = 0; j < blocks[candidate].length; j += 1) {
+    comparisons += 1;
+    const record = blocks[candidate][j];
+    const position = candidate * blockSize + j + 1;
+    const found = String(record.key) === String(target);
+    steps.push({
+      type: 'compare',
+      block: candidate,
+      slot: j,
+      position,
       accesses,
       comparisons,
-      description: `Acceso ${accesses} al archivo de datos: el índice indicó el BLOQUE ${b + 1}, así que se lee del disco (registros: ${keysInBlock}).`,
+      found,
+      description: found
+        ? `Comparación ${comparisons}: ${record.key} = ${target} → clave encontrada en la posición ${position} del Bloque ${candidate + 1}.`
+        : `Comparación ${comparisons}: ${record.key} ≠ ${target} → se sigue con el siguiente registro del Bloque.`,
     });
-
-    for (let j = 0; j < blocks[b].length; j += 1) {
-      comparisons += 1;
-      const record = blocks[b][j];
-      const position = b * blockSize + j + 1;
-      const found = String(record.key) === String(target);
-      steps.push({
-        type: 'compare',
-        block: b,
-        slot: j,
+    if (found) {
+      return {
+        found: true,
         position,
+        block: candidate + 1,
         accesses,
         comparisons,
-        found,
-        description: found
-          ? `Comparación ${comparisons}: el registro ${record.key} (${record.name}) de la posición ${position} COINCIDE con ${target}.`
-          : `Comparación ${comparisons}: el registro ${record.key} (${record.name}) de la posición ${position} no coincide con ${target}; se continúa la búsqueda secuencial.`,
-      });
-      if (found) {
-        return {
-          found: true,
-          position,
-          block: b + 1,
-          accesses,
-          comparisons,
-          indexReads,
-          steps,
-        };
-      }
+        indexReads,
+        steps,
+      };
     }
   }
 
   steps.push({
     type: 'notfound',
+    block: candidate,
     accesses,
     comparisons,
     indexReads,
-    description: `Se recorrió el archivo desde la posición indicada por el índice (${accesses} accesos, ${comparisons} comparaciones) y la clave ${target} no se encuentra.`,
+    description: `Se revisó el Bloque ${candidate + 1} completo (${comparisons} comparación${comparisons === 1 ? '' : 'es'}) y la clave ${target} no se encuentra en la estructura.`,
   });
-  return { found: false, position: null, block: null, accesses, comparisons, indexReads, steps };
+  return {
+    found: false,
+    position: null,
+    block: null,
+    accesses,
+    comparisons,
+    indexReads,
+    steps,
+  };
 }

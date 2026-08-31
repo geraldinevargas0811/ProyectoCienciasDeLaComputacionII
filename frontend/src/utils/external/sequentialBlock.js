@@ -30,7 +30,7 @@ export function sequentialBlockSearch(records, target, blockSize) {
       block: b,
       accesses,
       comparisons,
-      description: `Acceso ${accesses} a disco: se lee el BLOQUE ${b + 1} completo (registros: ${keysInBlock}).`,
+      description: `Acceso ${accesses} a disco: se lee el Bloque ${b + 1} completo (registros: ${keysInBlock}).`,
     });
 
     for (let j = 0; j < blocks[b].length; j += 1) {
@@ -47,8 +47,8 @@ export function sequentialBlockSearch(records, target, blockSize) {
         comparisons,
         found,
         description: found
-          ? `Comparación ${comparisons}: el registro ${record.key} (${record.name}) de la posición ${position} COINCIDE con la clave buscada ${target}.`
-          : `Comparación ${comparisons}: el registro ${record.key} (${record.name}) de la posición ${position} no coincide con ${target}; se continúa.`,
+          ? `Comparación ${comparisons}: el registro ${record.key} de la posición ${position} COINCIDE con la clave buscada ${target}.`
+          : `Comparación ${comparisons}: el registro ${record.key} de la posición ${position} no coincide con ${target}; se continúa.`,
       });
       if (found) {
         return {

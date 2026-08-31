@@ -1,21 +1,26 @@
 import { useMemo, useState } from 'react';
-import { PageHeader } from '../../../components/common/UI';
-import DataPanel from '../../../components/external/DataPanel';
+import { Button, PageHeader } from '../../../components/common/UI';
+import { InsertDataPanel } from '../../../components/search/SearchPanels';
+import SearchPanel from '../../../components/external/SearchPanel';
 import IndexFileViz from '../../../components/external/IndexFileViz';
 import ExplanationPanel from '../../../components/external/ExplanationPanel';
 import ExternalResult from '../../../components/external/ExternalResult';
-import StepControls from '../../../components/external/StepControls';
-import Tabs from '../../../components/external/Tabs';
 import { useStepPlayer } from '../../../components/external/useStepPlayer';
-import { randomRecords, nameFor } from '../../../utils/external/dataGenerators';
+import { randomRecords, validKey, keyLengthError } from '../../../utils/external/dataGenerators';
 import { sqrtBlockSize, sortByKey } from '../../../utils/external/fileBlocks';
 import { buildSparseIndex, sequentialIndexSearch } from '../../../utils/external/sequentialIndex';
+
+const digitsOnly = (value) => String(value ?? '').replace(/\D/g, '');
+const keySizeOptions = [
+  ['2', '2 dígitos'],
+  ['3', '3 dígitos'],
+  ['4', '4 dígitos'],
+];
 
 // BÚSQUEDA SECUENCIAL — CON ÍNDICES.
 export default function SequentialIndexPage() {
   const [count, setCount] = useState('8');
   const [digits, setDigits] = useState('2');
-  const [tab, setTab] = useState('search');
   const [records, setRecords] = useState(null);
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState(null);
@@ -30,89 +35,109 @@ export default function SequentialIndexPage() {
   const player = useStepPlayer(totalSteps);
   const step = result?.steps?.[player.stepIndex];
 
+  const loaded = records != null;
+
   const createFile = () => {
     const n = Number(count);
-    if (!Number.isInteger(n) || n < 1) { setMessage({ type: 'error', text: 'Indica un número de registros válido.' }); return; }
+    if (!Number.isInteger(n) || n < 1) { setMessage({ type: 'error', text: 'Indica un tamaño válido para la estructura.' }); return; }
     setRecords([]);
     setResult(null);
-    setMessage({ type: 'success', text: 'Archivo creado. Se construirá un archivo de índices con una entrada por bloque (una vez que existan registros).' });
+    setMessage({ type: 'success', text: 'Estructura creada y vacía: lista para el ingreso de datos.' });
   };
 
   const generate = () => {
-    if (!records) return { type: 'error', text: 'Crea el archivo antes de generar registros.' };
-    const generated = randomRecords(records.length, Number(digits));
-    if (!generated) return { type: 'error', text: 'No es posible generar claves únicas con esos dígitos.' };
-    setRecords(generated);
+    if (!records) return { type: 'error', text: 'Crea la estructura antes de generar registros.' };
+    const n = (Number(count) || 0) - records.length;
+    if (n <= 0) return { type: 'error', text: 'La estructura está completa.' };
+    const generated = randomRecords(n, Number(digits));
+    if (!generated) return { type: 'error', text: `No es posible generar ${n} claves únicas de ${digits} dígitos.` };
+    setRecords(sortByKey(generated));
     setResult(null);
-    return { type: 'success', text: `${records.length} registros aleatorios generados. Se ordenan para la búsqueda con índices.` };
+    return { type: 'success', text: `${n} registros aleatorios generados y ordenados por clave.` };
   };
 
   const insertManual = (raw) => {
-    if (!records) return { type: 'error', text: 'Crea el archivo antes de ingresar registros.' };
+    if (!records) return { type: 'error', text: 'Crea la estructura antes de ingresar datos.' };
     const key = String(raw ?? '').replace(/\D/g, '');
-    if (!key || key.length > Number(digits)) return { type: 'error', text: `La clave debe tener hasta ${digits} dígitos.` };
-    if (records.some((r) => r.key === key)) return { type: 'error', text: 'La clave ya existe en el archivo.' };
-    setRecords([...records, { key, name: nameFor(records) }]);
+    if (!validKey(key, digits)) return keyLengthError('insert', digits);
+    if (records.length >= Number(count)) return { type: 'error', text: 'La estructura está completa.' };
+    if (records.some((r) => r.key === key)) return { type: 'error', text: 'La estructura no admite claves repetidas.' };
+    setRecords(sortByKey([...records, { key }]));
     setResult(null);
-    return { type: 'success', text: `Registro ${key} añadido.` };
+    return { type: 'success', text: `Dato ${key} añadido: la estructura se mantiene ordenada.` };
   };
 
   const runSearch = async (target) => {
-    if (!records || records.length === 0) return { type: 'error', text: 'Crea el archivo con registros antes de buscar.' };
+    if (!records) return { type: 'error', text: 'Crea la estructura antes de buscar.' };
+    if (records.length === 0) return { type: 'error', text: 'Ingresa datos antes de buscar.' };
+    if (!validKey(target, digits)) return keyLengthError('search', digits);
     const t0 = performance.now();
     const res = sequentialIndexSearch(sorted, String(target), blockSize);
     setResult({ ...res, key: String(target), indexReads: res.indexReads });
     setLastTarget(String(target));
     setTimeMs(Math.max(1, Math.round(performance.now() - t0)));
-    return { type: res.found ? 'success' : 'error', text: res.found ? `Clave ${target} encontrada en el BLOQUE ${res.block}, posición ${res.position}.` : `La clave ${target} no se encuentra en el archivo.` };
+    return { type: res.found ? 'success' : 'error', text: res.found ? `Clave ${target} encontrada en el Bloque ${res.block}, posición ${res.position}.` : `La clave ${target} no fue encontrada en la estructura.` };
   };
+
+  const clearFile = () => {
+    setRecords([]);
+    setResult(null);
+    return { type: 'success', text: 'Estructura vacía: lista para ingresar nuevos datos.' };
+  };
+
+  const meta = [
+    step?.type === 'index' ? `Índice consultado: ${step.indexReads} entrada(s)` : null,
+    step?.block != null ? `Bloque leído: ${step.block + 1}` : null,
+    step?.type === 'compare' ? `Posición consultada: ${step.position}` : null,
+    `Accesos: ${step?.accesses ?? 0}`,
+    `Comparaciones: ${step?.comparisons ?? 0}`,
+  ].filter(Boolean);
 
   return (
     <>
-      <PageHeader title="CON ÍNDICES" eyebrow="Búsqueda Secuencial" description="El archivo de índices localiza la posición aproximada de la clave y luego se ejecuta la búsqueda secuencial sobre el archivo de datos." />
-      <Tabs tabs={[['search', 'CON ÍNDICES'], ['about', 'Explicación']]} active={tab} onChange={setTab} />
-      {tab === 'about' ? (
-        <section className="panel intro-readme">
-          <h2>Explicación — Búsqueda secuencial con índices</h2>
-          <p>Existen dos estructuras: el <b>archivo principal de datos</b> (organizado/ordenado y dividido en bloques) y el <b>archivo de índices</b>.</p>
-          <p>Cada entrada del índice guarda el primer registro del bloque, el último y la <b>dirección (bloque)</b> donde continúa la búsqueda. El índice se consulta en memoria (no produce accesos a disco) y permite localizar una <b>posición aproximada</b>; a partir de esa posición se realiza la búsqueda secuencial en el archivo de datos.</p>
-          <p>La vista muestra la relación entre cada entrada del índice y la posición correspondiente del archivo.</p>
-        </section>
-      ) : (
-        <div className="external-grid">
-          <div className="external-grid__controls">
-            <DataPanel
-              count={count} onCountChange={setCount}
-              digits={digits} onDigitsChange={setDigits}
-              onCreate={createFile} onGenerate={generate} onManualInsert={insertManual} onSearch={runSearch}
-              message={message} loaded={records != null} existingCount={records?.length ?? 0}
-            />
+      <PageHeader title="Búsqueda secuencial con índices" />
+      <div className="lab-layout">
+          <div className="lab-layout__controls">
+            <section className="panel">
+              <h2>Crear estructura</h2>
+              <div className="form-grid">
+                <label>Tamaño de la estructura (N)<input type="number" min="1" step="1" inputMode="numeric" value={count} onChange={(event) => setCount(digitsOnly(event.target.value))} /></label>
+                <label>Tamaño de las claves<select value={digits} onChange={(event) => setDigits(event.target.value)}>{keySizeOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+              </div>
+              <p className="notice">El índice se construye con la última clave de cada bloque y apunta al bloque donde podría estar la clave buscada.</p>
+              {message && <p className={`validation-message validation-message--${message.type}`} role="status">{message.text}</p>}
+              <Button onClick={createFile}>Crear estructura</Button>
+            </section>
+            {loaded && <InsertDataPanel insertedCount={records?.length ?? 0} total={Number(count) || 0} onInsert={insertManual} onGenerate={generate} />}
+            {loaded && <SearchPanel onSearch={runSearch} maxLength={Number(digits)} />}
             {result && <ExternalResult result={{ ...result, key: lastTarget }} timeMs={timeMs} />}
           </div>
-          <div className="external-grid__visual">
+          <div className="lab-layout__visual">
             <section className="panel">
-              <h2>Visualización: índice y archivo de datos</h2>
-              {records && records.length ? (
+              <h2>Visualización de la estructura e índices</h2>
+              {records != null ? (
                 <IndexFileViz
                   records={sorted}
                   blockSize={blockSize}
+                  total={Number(count) || 0}
                   indexEntries={indexEntries}
                   activeEntry={step?.type === 'index' ? step.entry : undefined}
                   activeBlock={step?.block != null ? step.block : null}
                   activeSlot={step?.slot ?? null}
                   foundPosition={result?.found ? result.position : null}
                 />
-              ) : <div className="visualization-placeholder"><span>▥</span></div>}
+              ) : <div className="visualization-placeholder"><span>▥</span><p>Crea la estructura y genera datos para comenzar.</p></div>}
             </section>
-            {result ? (
-              <>
-                <ExplanationPanel index={player.stepIndex} total={totalSteps} playing={player.playing} description={step?.description} chips={[['Índice', step?.indexReads ?? 0], ['Accesos', step?.accesses ?? 0], ['Comparaciones', step?.comparisons ?? 0]]} />
-                <StepControls {...player} />
-              </>
-            ) : <div className="placeholder-hint">Configura el archivo y presiona Buscar para iniciar el paso a paso.</div>}
+            {result && (
+              <ExplanationPanel
+                {...player}
+                currentKey={lastTarget}
+                description={step?.description}
+                meta={meta}
+              />
+            )}
           </div>
         </div>
-      )}
     </>
   );
 }
