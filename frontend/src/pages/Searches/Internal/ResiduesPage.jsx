@@ -5,7 +5,6 @@ import { buildSimulation, keyInfo, parseKeys, searchTree } from '../../../utils/
 // Configuración del encaje automático del árbol: círculos separados por niveles,
 // sin solapamientos y con los padres centrados sobre sus hijos.
 const NODE_R = 20;
-const X_SPACING = 82;
 const Y_SPACING = 96;
 const PAD = 30;
 
@@ -35,12 +34,25 @@ function layoutTree(tree) {
     entries.forEach(([, edge]) => assignLeaves(edge.node));
   };
 
-  // Posición horizontal de cada nodo: las hojas usan su columna; los demás quedan
-  // centrados sobre el rango horizontal que abarcan sus hijos.
+  // Espaciado horizontal adaptativo: cuantas más hojas, más compacto queda el dibujo.
+  const spacing = leafCount > 24 ? 34 : leafCount > 12 ? 52 : leafCount > 6 ? 72 : 86;
+
+  // Posición horizontal de cada nodo: las hojas usan su columna; los nodos con dos hijos
+  // quedan centrados sobre el rango que abarcan sus hijos. Cuando un nodo tiene UN solo hijo
+  // ya no se centra sobre él (eso produciría una arista vertical), sino que se desplaza hacia
+  // el lado que corresponde al bit: bit 0 (hijo izquierdo) → el padre queda a la derecha del
+  // hijo; bit 1 (hijo derecho) → el padre queda a la izquierda del hijo.
   const computeX = (node) => {
     const entries = childrenEntries(node);
     if (entries.length === 0) {
-      pos[node.id] = leafX[node.id] * X_SPACING;
+      pos[node.id] = leafX[node.id] * spacing;
+      return pos[node.id];
+    }
+    if (entries.length === 1) {
+      const [label, edge] = entries[0];
+      const childX = computeX(edge.node);
+      const dir = String(label).endsWith('1') ? 1 : -1;
+      pos[node.id] = childX - dir * (spacing / 2);
       return pos[node.id];
     }
     const xs = entries.map(([, edge]) => computeX(edge.node));
@@ -52,8 +64,14 @@ function layoutTree(tree) {
   assignLeaves(tree);
   computeX(tree);
 
-  const width = Math.max(360, (leafCount - 1) * X_SPACING + NODE_R * 2 + PAD * 2);
+  const width = Math.max(360, (leafCount - 1) * spacing + NODE_R * 2 + PAD * 2);
   const height = (maxDepth + 1) * Y_SPACING + NODE_R * 2 + PAD;
+
+  // Centrado horizontal: se desplaza todo el dibujo para que la raíz (y el conjunto de
+  // hojas) quede centrado en el ancho del lienzo, incluso cuando el árbol es pequeño.
+  const contentMid = ((leafCount - 1) * spacing) / 2 + NODE_R + PAD;
+  const offset = width / 2 - contentMid;
+  Object.keys(pos).forEach((id) => { pos[id] += offset; });
 
   const edges = [];
   const collectEdges = (node) => {
@@ -71,6 +89,7 @@ function layoutTree(tree) {
 }
 
 function TreeCanvas({ tree, active = [] }) {
+  const [zoom, setZoom] = useState(1);
   if (!tree) return <div className="visualization-placeholder"><span>○</span></div>;
   const { nodes, edges, width, height, cx, cy, NODE_R } = layoutTree(tree);
   const activeSet = new Set(active);
@@ -82,39 +101,50 @@ function TreeCanvas({ tree, active = [] }) {
     const match = /^b\d+=([01])$/.exec(label);
     return match ? match[1] : label;
   };
+  const z = Math.round(zoom * 10) / 10;
 
   return (
-    <div className="tree-canvas tree-canvas--svg">
-      <svg width={width} height={height} role="img" aria-label="Árbol de búsqueda">
-        <g>
-          {edges.map((edge) => {
-            const x1 = cx(edge.from); const y1 = cy(edge.from);
-            const x2 = cx(edge.to); const y2 = cy(edge.to);
-            const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2;
-            const activeEdge = edgeActive(edge);
-            return <g key={`${edge.from}-${edge.to}`}>
-              <line className={`tree-edge${activeEdge ? ' tree-edge--active' : ''}`} x1={x1} y1={y1} x2={x2} y2={y2} />
-              <text className="tree-edge-label" x={mx + (x1 === x2 ? 12 : -10)} y={my - 10} textAnchor="middle">{displayLabel(edge.label)}</text>
-            </g>;
-          })}
-        </g>
-        <g>
-          {Object.values(nodes).map((node) => {
-            const isKey = node.kind !== 'link';
-            const isActive = activeSet.has(node.id);
-            return <g key={node.id}>
-              <circle className={`tree-node-circle tree-node-circle--${isKey ? 'key' : 'link'}${isActive ? ' tree-node-circle--active' : ''}`} cx={cx(node.id)} cy={cy(node.id)} r={NODE_R} />
-              {isKey && <text className="tree-node-key" x={cx(node.id)} y={cy(node.id)} textAnchor="middle" dominantBaseline="central">{node.key}</text>}
-            </g>;
-          })}
-        </g>
-      </svg>
+    <div className="tree-viewer">
+      <div className="tree-viewer__toolbar">
+        <button type="button" title="Acercar" onClick={() => setZoom((v) => Math.min(2, Math.round((v + 0.1) * 10) / 10))} disabled={z >= 2}>+</button>
+        <button type="button" title="Alejar" onClick={() => setZoom((v) => Math.max(0.4, Math.round((v - 0.1) * 10) / 10))} disabled={z <= 0.4}>−</button>
+        <button type="button" title="Restablecer zoom" onClick={() => setZoom(1)}>⇱</button>
+        <span className="tree-viewer__zoom">{Math.round(z * 100)}%</span>
+      </div>
+      <div className="tree-canvas tree-canvas--svg">
+        <div className="tree-canvas__zoom" style={{ width: width * z, height: height * z }}>
+          <svg width={width * z} height={height * z} role="img" aria-label="Árbol de búsqueda">
+            <g transform={`scale(${z})`}>
+              {edges.map((edge) => {
+                const x1 = cx(edge.from); const y1 = cy(edge.from);
+                const x2 = cx(edge.to); const y2 = cy(edge.to);
+                const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2;
+                const activeEdge = edgeActive(edge);
+                return <g key={`${edge.from}-${edge.to}`}>
+                  <line className={`tree-edge${activeEdge ? ' tree-edge--active' : ''}`} x1={x1} y1={y1} x2={x2} y2={y2} />
+                  <text className="tree-edge-label" x={mx + (x1 === x2 ? 12 : -10)} y={my - 10} textAnchor="middle">{displayLabel(edge.label)}</text>
+                </g>;
+              })}
+            </g>
+            <g transform={`scale(${z})`}>
+              {Object.values(nodes).map((node) => {
+                const isKey = node.kind !== 'link';
+                const isActive = activeSet.has(node.id);
+                return <g key={node.id}>
+                  <circle className={`tree-node-circle tree-node-circle--${isKey ? 'key' : 'link'}${isActive ? ' tree-node-circle--active' : ''}`} cx={cx(node.id)} cy={cy(node.id)} r={NODE_R} />
+                  {isKey && <text className="tree-node-key" x={cx(node.id)} y={cy(node.id)} textAnchor="middle" dominantBaseline="central">{node.key}</text>}
+                </g>;
+              })}
+            </g>
+          </svg>
+        </div>
+      </div>
     </div>
   );
 }
 
 const typeLabels = {
-  digital: 'Árbol de búsqueda por dígitos',
+  digital: 'Árbol de búsqueda digital',
   residue: 'Árbol de búsqueda por residuos',
   multiple: 'Árbol de búsqueda por residuos múltiples',
 };
@@ -250,7 +280,7 @@ export default function ResiduesPage() {
           <section className="panel">
             <h2>Crear estructura</h2>
             <div className="form-grid">
-              <label>Tipo de árbol<select value={type} onChange={(event) => { setType(event.target.value); setSimulation(null); setFrameIndex(0); setSearchResult(null); }}><option value="digital">Búsqueda por dígitos</option><option value="residue">Por residuos</option><option value="multiple">Por residuos múltiples</option></select></label>
+              <label>Tipo de árbol<select value={type} onChange={(event) => { setType(event.target.value); setSimulation(null); setFrameIndex(0); setSearchResult(null); }}><option value="digital">Árboles de búsqueda digital</option><option value="residue">Árboles de búsqueda por residuos</option><option value="multiple">Árboles de búsqueda por residuos múltiples</option></select></label>
               {multiple && <label>m (bits por nivel)<input type="number" min="1" max={maxM} value={m} onChange={(event) => setM(event.target.value.replace(/\D/g, ''))} /></label>}
             </div>
             {multiple && <p className="notice">M = 2<sup>m</sup> ramas: con m = {m || '?'} → {Number(m) >= 1 ? 2 ** Number(m) : '—'} enlaces posibles.</p>}
@@ -291,8 +321,15 @@ export default function ResiduesPage() {
 
           {created && (
             <section className="panel">
-              <h2>Orden de inserción</h2>
-              <ol className="insertion-order">{simulation ? simulation.accepted.map((item, index) => <li key={item.key} className={index === currentKeyIndex ? 'active' : ''}>{item.key} → {item.value} → <code>{item.binary}</code></li>) : <li>Las claves se muestran al construirlas.</li>}</ol>
+              <h2>Tabla binaria</h2>
+              <table className="binary-table">
+                <thead><tr><th>K</th><th>ABC</th><th>Binario</th></tr></thead>
+                <tbody>
+                  {simulation ? simulation.accepted.map((item, index) => (
+                    <tr key={item.key} className={index === currentKeyIndex ? 'active' : ''}><td>{item.key}</td><td>{item.value}</td><td><code>{item.binary}</code></td></tr>
+                  )) : <tr className="empty"><td colSpan="3">Las claves se muestran al construirlas.</td></tr>}
+                </tbody>
+              </table>
             </section>
           )}
 
@@ -308,13 +345,6 @@ export default function ResiduesPage() {
                 <Button variant="secondary" disabled={!searchEnabled} onClick={() => { const r = runDelete(); setNotice(r); }}>Eliminar</Button>
               </div>
               <Button variant="secondary" className="operation-clear" onClick={() => { const r = runClear(); setNotice(r); }}>Limpiar</Button>
-              {searchResult && (
-                <div className="algorithm-step" style={{ marginTop: 14 }}>
-                  <span>Búsqueda · paso {Math.min(searchStep + 1, searchResult.steps.length)} de {searchResult.steps.length}</span>
-                  <p>{activeSearch?.text ?? 'No hay recorrido posible.'}</p>
-                  <div className="step-controls"><Button variant="secondary" disabled={searchStep === 0} onClick={() => setSearchStep(searchStep - 1)}>Anterior</Button><Button variant="secondary" disabled={searchStep >= searchResult.steps.length - 1} onClick={() => setSearchStep(searchStep + 1)}>Siguiente</Button></div>
-                </div>
-              )}
             </section>
           )}
         </div>
@@ -326,20 +356,26 @@ export default function ResiduesPage() {
           </section>
           {simulation && (
             <section className="panel">
-              <h2>Construcción paso a paso</h2>
-              {currentFrame ? (
+              <h2>Paso a paso</h2>
+              {(searchResult && activeSearch) ? (
+                <div className="algorithm-step">
+                  <span>Búsqueda · paso {Math.min(searchStep + 1, searchResult.steps.length)} de {searchResult.steps.length}</span>
+                  <p>{activeSearch.text ?? 'No hay recorrido posible.'}</p>
+                  <div className="step-controls"><Button variant="secondary" disabled={searchStep === 0} onClick={() => setSearchStep(searchStep - 1)}>Anterior</Button><Button variant="secondary" disabled={searchStep >= searchResult.steps.length - 1} onClick={() => setSearchStep(searchStep + 1)}>Siguiente</Button></div>
+                </div>
+              ) : currentFrame ? (
                 <div className="algorithm-step">
                   <span>Inserción {currentFrame.stepIndex + 1} de {simulation.steps.length}{playing ? ' · reproduciendo…' : ''}</span>
                   <small>Clave: {currentFrame.key} · Posición: {currentFrame.info?.value} · Binario: <code>{currentFrame.info?.binary}</code></small>
                   <p>{currentFrame.detail}</p>
+                  <div className="step-controls">
+                    <Button variant="secondary" disabled={frameIndex === 0} onClick={() => manualFrame(frameIndex - 1)}>Anterior</Button>
+                    <Button disabled={frameIndex >= frames.length - 1} onClick={() => manualFrame(frameIndex + 1)}>Siguiente</Button>
+                    <Button variant="secondary" disabled={frameIndex >= frames.length - 1} onClick={() => manualFrame(frames.length - 1)}>Último paso</Button>
+                    <Button variant="secondary" onClick={() => manualFrame(0)}>Reiniciar</Button>
+                  </div>
                 </div>
               ) : <div className="visualization-placeholder"><span>↓</span><p>Construye el árbol para comenzar.</p></div>}
-              <div className="step-controls">
-                <Button variant="secondary" disabled={frameIndex === 0} onClick={() => manualFrame(frameIndex - 1)}>Anterior</Button>
-                <Button disabled={!simulation || frameIndex >= frames.length - 1} onClick={() => manualFrame(frameIndex + 1)}>Siguiente</Button>
-                <Button variant="secondary" disabled={!simulation || frameIndex >= frames.length - 1} onClick={() => manualFrame(frames.length - 1)}>Último paso</Button>
-                <Button variant="secondary" disabled={!simulation} onClick={() => { manualFrame(0); }}>Reiniciar</Button>
-              </div>
             </section>
           )}
         </div>

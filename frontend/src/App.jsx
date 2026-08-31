@@ -6,6 +6,7 @@ import InternalPage from './pages/Searches/Internal/InternalPage';
 import AlgorithmPage from './pages/Searches/Internal/AlgorithmPage';
 import HashPage from './pages/Searches/Internal/HashPage';
 import ResiduesPage from './pages/Searches/Internal/ResiduesPage';
+import HuffmanPage from './pages/Searches/Internal/HuffmanPage';
 import ExternalPage from './pages/Searches/SearchesHome/External/ExternalPage';
 import GraphsPage from './pages/Graphs/GraphsPage';
 
@@ -23,6 +24,7 @@ function resolvePage(path, navigate) {
   if (path === '/busquedas/interna/binaria') return <BinaryAlgorithmPage />;
   if (path === '/busquedas/interna/hash') return <HashPage />;
   if (path === '/busquedas/interna/residuos') return <ResiduesPage />;
+  if (path === '/busquedas/interna/huffman') return <HuffmanPage />;
   if (path === '/busquedas/externa') return <ExternalPage />;
   if (path === '/grafos') return <GraphsPage />;
   return <HomePage navigate={navigate} />;
