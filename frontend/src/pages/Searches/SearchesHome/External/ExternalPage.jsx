@@ -1,2 +1,19 @@
-import { PageHeader } from '../../../../components/common/UI';
-export default function ExternalPage() { return <><PageHeader title="Búsquedas externas" /><section className="future-panel"><span>▥</span><h2>Laboratorio en preparación</h2><div><article>Organización de archivos</article><article>Acceso a registros</article><article>Visualización de bloques</article></div></section></>; }
+import { OptionCard, PageHeader } from '../../../../components/common/UI';
+
+// Menú principal: Búsquedas externas.
+export default function ExternalPage({ navigate }) {
+  return (
+    <>
+      <PageHeader title="Búsquedas externas" />
+      <section className="option-grid option-grid--four">
+        <OptionCard icon="▤" title="Búsqueda secuencial" onClick={() => navigate('/busquedas/externa/secuencial')} />
+        <OptionCard icon="⇆" title="Búsqueda binaria" onClick={() => navigate('/busquedas/externa/binaria')} />
+        <OptionCard icon="⌗" title="Búsqueda por transformación de claves" onClick={() => navigate('/busquedas/externa/hash')} />
+        <OptionCard icon="▦" title="Otras búsquedas externas" onClick={() => navigate('/busquedas/externa/dinamicas')} />
+      </section>
+      <section className="option-grid" style={{ marginTop: 22 }}>
+        <OptionCard icon="⚖" title="Comparación de métodos" onClick={() => navigate('/busquedas/externa/comparacion')} />
+      </section>
+    </>
+  );
+}
