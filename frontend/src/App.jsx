@@ -6,6 +6,7 @@ import InternalPage from './pages/Searches/Internal/InternalPage';
 import AlgorithmPage from './pages/Searches/Internal/AlgorithmPage';
 import HashPage from './pages/Searches/Internal/HashPage';
 import ResiduesPage from './pages/Searches/Internal/ResiduesPage';
+import HuffmanPage from './pages/Searches/Internal/HuffmanPage';
 import ExternalPage from './pages/Searches/SearchesHome/External/ExternalPage';
 import SequentialMenuPage from './pages/Searches/External/SequentialMenuPage';
 import SequentialBlocksPage from './pages/Searches/External/SequentialBlocksPage';
@@ -38,6 +39,8 @@ function resolvePage(path, navigate) {
   if (path === '/busquedas/externa/hash') return <FuncHashPage />;
   if (path === '/busquedas/externa/dinamicas') return <DynamicPage />;
   if (path === '/busquedas/externa/comparacion') return <ComparePage />;
+  if (path === '/busquedas/interna/huffman') return <HuffmanPage />;
+  if (path === '/busquedas/externa') return <ExternalPage />;
   if (path === '/grafos') return <GraphsPage />;
   return <HomePage navigate={navigate} />;
 }

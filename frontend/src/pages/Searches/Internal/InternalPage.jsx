@@ -3,8 +3,9 @@ import { OptionCard, PageHeader } from '../../../components/common/UI';
 const algorithms = [
   ['→', 'Búsqueda secuencial', '/busquedas/interna/secuencial'],
   ['⇆', 'Búsqueda binaria', '/busquedas/interna/binaria'],
-  ['⌗', 'Búsqueda por residuos', '/busquedas/interna/residuos'],
   ['▦', 'Transformación por claves', '/busquedas/interna/hash'],
+  ['⌗', 'Búsqueda por residuos', '/busquedas/interna/residuos'],
+  ['⊞', 'Árboles de Huffman', '/busquedas/interna/huffman'],
 ];
 
 export default function InternalPage({ navigate }) {
