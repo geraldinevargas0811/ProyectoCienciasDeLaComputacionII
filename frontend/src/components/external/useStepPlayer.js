@@ -26,7 +26,7 @@ export function useStepPlayer(total) {
         if (prev >= total - 1) { stopTimer(); setPlaying(false); return prev; }
         return prev + 1;
       });
-    }, 750);
+    }, 1300);
   };
 
   // INICIAR: si ya terminó, vuelve al inicio y reproduce desde allí.
