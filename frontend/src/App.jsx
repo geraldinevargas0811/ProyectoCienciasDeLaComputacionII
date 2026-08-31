@@ -7,9 +7,16 @@ import AlgorithmPage from './pages/Searches/Internal/AlgorithmPage';
 import HashPage from './pages/Searches/Internal/HashPage';
 import ResiduesPage from './pages/Searches/Internal/ResiduesPage';
 import ExternalPage from './pages/Searches/SearchesHome/External/ExternalPage';
+import SequentialMenuPage from './pages/Searches/External/SequentialMenuPage';
+import SequentialBlocksPage from './pages/Searches/External/SequentialBlocksPage';
+import SequentialIndexPage from './pages/Searches/External/SequentialIndexPage';
+import BinaryFilePage from './pages/Searches/External/BinaryFilePage';
+import FuncHashPage from './pages/Searches/External/FuncHashPage';
+import DynamicPage from './pages/Searches/External/DynamicPage';
+import ComparePage from './pages/Searches/External/ComparePage';
 import GraphsPage from './pages/Graphs/GraphsPage';
 
-// Cada algoritmo se envuelve en un componente propio para que React memte/desmonte
+// Cada algoritmo se envuelve en un componente propio para que React monte/desmonte
 // instancias independientes al navegar. Esto evita que Secuencial y Binaria compartan
 // estado (nunca deben ocupar el mismo slot del árbol). La lógica interna es la misma.
 function SequentialAlgorithmPage() { return <AlgorithmPage type="sequential" />; }
@@ -23,7 +30,14 @@ function resolvePage(path, navigate) {
   if (path === '/busquedas/interna/binaria') return <BinaryAlgorithmPage />;
   if (path === '/busquedas/interna/hash') return <HashPage />;
   if (path === '/busquedas/interna/residuos') return <ResiduesPage />;
-  if (path === '/busquedas/externa') return <ExternalPage />;
+  if (path === '/busquedas/externa') return <ExternalPage navigate={navigate} />;
+  if (path === '/busquedas/externa/secuencial') return <SequentialMenuPage navigate={navigate} />;
+  if (path === '/busquedas/externa/secuencial/bloques') return <SequentialBlocksPage />;
+  if (path === '/busquedas/externa/secuencial/indices') return <SequentialIndexPage />;
+  if (path === '/busquedas/externa/binaria') return <BinaryFilePage />;
+  if (path === '/busquedas/externa/hash') return <FuncHashPage />;
+  if (path === '/busquedas/externa/dinamicas') return <DynamicPage />;
+  if (path === '/busquedas/externa/comparacion') return <ComparePage />;
   if (path === '/grafos') return <GraphsPage />;
   return <HomePage navigate={navigate} />;
 }
