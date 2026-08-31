@@ -59,7 +59,7 @@ export default function FuncHashPage() {
 
   const createFile = () => {
     const M = Number(size);
-    if (!Number.isInteger(M) || M < 2) { setCreateMessage({ type: 'error', text: 'Indica un tamaño válido para la estructura.' }); return; }
+    if (!Number.isInteger(M) || M < 2 || M % 2 !== 0) { setCreateMessage({ type: 'error', text: 'El número de cubetas debe ser par y mayor o igual a 2.' }); return; }
     setCreated(true);
     setKeys([]);
     setHashResult(null);
@@ -170,7 +170,7 @@ export default function FuncHashPage() {
           <section className="panel">
             <h2>Crear estructura</h2>
             <div className="form-grid">
-              <label>M (nº de posiciones/cubetas)<input type="number" min="2" step="1" inputMode="numeric" value={size} onChange={(event) => setSize(digitsOnly(event.target.value))} /></label>
+              <label>M (nº de posiciones/cubetas — par)<input type="number" min="2" step="2" inputMode="numeric" value={size} onChange={(event) => setSize(digitsOnly(event.target.value))} /></label>
               <label>Dígitos de las claves<select value={digits} onChange={(event) => { setDigits(event.target.value); setKeys([]); }}>{digitOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
               <label>Nº de claves a generar<input type="number" min="1" step="1" inputMode="numeric" value={keyCount} onChange={(event) => setKeyCount(digitsOnly(event.target.value))} /></label>
               {tab === 'cubetas' && <label>Capacidad por cubeta (C)<input type="number" min="1" step="1" inputMode="numeric" value={capacity} onChange={(event) => setCapacity(digitsOnly(event.target.value))} /></label>}

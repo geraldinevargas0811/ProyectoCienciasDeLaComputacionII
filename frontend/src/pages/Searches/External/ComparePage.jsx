@@ -28,7 +28,7 @@ export default function ComparePage() {
     if (!unsorted) { setMessage({ type: 'error', text: `No es posible generar ${n} claves únicas de ${digits} dígitos.` }); return; }
     const sorted = sortByKey(unsorted);
     const blockSize = sqrtBlockSize(n);
-    const M = Math.max(3, blockSize);
+    const M = Math.max(3, blockSize) + (Math.max(3, blockSize) % 2 !== 0 ? 1 : 0);
 
     const time = (fn) => { const t0 = performance.now(); const r = fn(); return { r, ms: Math.max(1, Math.round(performance.now() - t0)) }; };
 

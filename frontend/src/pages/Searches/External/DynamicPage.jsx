@@ -40,7 +40,7 @@ export default function DynamicPage() {
 
   const create = () => {
     const N = Number(initial);
-    if (!Number.isInteger(N) || N < 1) { setNotice({ type: 'error', text: 'Indica un número inicial de cubetas válido.' }); return; }
+    if (!Number.isInteger(N) || N < 2 || N % 2 !== 0) { setNotice({ type: 'error', text: 'El número inicial de cubetas debe ser par y mayor o igual a 2.' }); return; }
     setCreated(true);
     setKeys([]);
     setSim(null);
@@ -70,7 +70,7 @@ export default function DynamicPage() {
   const runSim = () => {
     if (!keys.length) return setNotice({ type: 'error', text: 'Primero ingresa las claves a insertar.' });
     const N = Number(initial);
-    if (!Number.isInteger(N) || N < 1) return setNotice({ type: 'error', text: 'Indica un número inicial de cubetas válido.' });
+    if (!Number.isInteger(N) || N < 2 || N % 2 !== 0) return setNotice({ type: 'error', text: 'El número inicial de cubetas debe ser par y mayor o igual a 2.' });
     const mode = tab === 'partial' ? 'partial' : 'total';
     const reduce = tab === 'reductions';
     const result = runDynamicSim({ keys, initial: N, mode, high: 0.75, low: 0.4, reduce });
@@ -113,7 +113,7 @@ export default function DynamicPage() {
           <section className="panel">
             <h2>Crear estructura</h2>
             <div className="form-grid">
-              <label>N (cantidad inicial de cubetas)<input type="number" min="1" step="1" inputMode="numeric" value={initial} onChange={(event) => setInitial(digitsOnly(event.target.value))} /></label>
+              <label>N (cantidad inicial de cubetas — par)<input type="number" min="2" step="2" inputMode="numeric" value={initial} onChange={(event) => setInitial(digitsOnly(event.target.value))} /></label>
               <label>Dígitos de las claves<select value={digits} onChange={(event) => { setDigits(event.target.value); setKeys([]); setSim(null); }}>{digitOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
             </div>
             {tab === 'reductions' && <p className="notice">La simulación inserta primero las claves (con sus expansiones) y luego elimina la mitad de ellas automáticamente para provocar las reducciones y mostrar el proceso contrario.</p>}
