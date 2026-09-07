@@ -7,9 +7,11 @@ export default function HashTableViz({ size, byPosition, activePosition }) {
   for (let p = 1; p <= size; p += 1) {
     const keys = byPosition?.[p] ?? [];
     const isActive = activePosition === p;
+    const isCollision = keys.length > 1;
     cells.push(
-      <div key={p} className={`hash-cell${isActive ? ' hash-cell--active' : ''}`}>
+      <div key={p} className={`hash-cell${isActive ? ' hash-cell--active' : ''}${isCollision ? ' hash-cell--collision' : ''}`}>
         <strong className="hash-cell__keys">{keys.length ? keys.join(' · ') : '·'}</strong>
+        {isCollision && <span className="hash-cell__badge">×{keys.length}</span>}
       </div>
     );
   }
@@ -17,5 +19,8 @@ export default function HashTableViz({ size, byPosition, activePosition }) {
   return <div className="hash-grid">
     <div className="hash-grid__head">Tamaño de la estructura: <strong>M = {size}</strong> posiciones</div>
     <div className="hash-grid__table">{cells}</div>
+    <div className="viz-legend">
+      <span><i className="legend__chip legend__chip--collision" /> Colisión: 2+ claves en la misma posición</span>
+    </div>
   </div>;
 }

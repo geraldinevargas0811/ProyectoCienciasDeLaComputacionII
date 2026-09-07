@@ -51,6 +51,19 @@ export default function FuncHashPage() {
   const player = useStepPlayer(total);
   const step = shownSteps[player.stepIndex];
 
+  // Progreso del ingreso: la cuadrícula se llena clave por clave según el paso
+  // actual, y solo al finalizar muestra la tabla completa.
+  const placedPositions = (() => {
+    if (!hashResult || step?.type !== 'hash') return null;
+    const map = {};
+    for (let i = 0; i <= player.stepIndex && i < hashResult.table.results.length; i += 1) {
+      const r = hashResult.table.results[i];
+      if (!map[r.position]) map[r.position] = [];
+      map[r.position].push(r.key);
+    }
+    return Object.keys(map).length ? map : null;
+  })();
+
   useEffect(() => {
     setHashResult(null);
     setBucketData(null);
@@ -206,7 +219,7 @@ export default function FuncHashPage() {
             <section className="panel">
               <h2>Visualización de la tabla hash</h2>
               {hashResult ? (
-                <HashTableViz size={Number(size)} byPosition={hashResult.table.byPosition} activePosition={step?.type === 'hash' ? step.position : undefined} />
+                <HashTableViz size={Number(size)} byPosition={placedPositions ?? hashResult.table.byPosition} activePosition={step?.type === 'hash' ? step.position : undefined} />
               ) : created ? (
                 <HashTableViz size={Number(size)} />
               ) : <div className="visualization-placeholder"><span>⌗</span><p>Crea la estructura y calcula las posiciones para comenzar.</p></div>}
@@ -254,7 +267,7 @@ export default function FuncHashPage() {
               </div>
               {hashResult ? (
                 <>
-                  <HashTableViz size={Number(size)} byPosition={hashResult.table.byPosition} activePosition={step?.type === 'hash' ? step.position : undefined} />
+<HashTableViz size={Number(size)} byPosition={placedPositions ?? hashResult.table.byPosition} activePosition={step?.type === 'hash' ? step.position : undefined} />
                   {hashResult.table.collisions.length > 0 ? (
                     <div className="collision-list">
                       <h3>Resumen de colisiones</h3>
