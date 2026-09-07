@@ -224,6 +224,12 @@ export default function FuncHashPage() {
                   activeBlock={step?.block}
                   activeSlot={step?.slot}
                   found={step?.type === 'found'}
+                  flow={searchData ? {
+                    target: searchData.target,
+                    position: searchData.result.position,
+                    transform: step?.transform ?? searchData.result.steps[0]?.transform,
+                    functionLabel: HASH_LABELS[activeFunction],
+                  } : null}
                 />
               ) : created ? (
                 <BucketDirectory directory={emptyDirectory} capacity={Number(capacity) || 2} />

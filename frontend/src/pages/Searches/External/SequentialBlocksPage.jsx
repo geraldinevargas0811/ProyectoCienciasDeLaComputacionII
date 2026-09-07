@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button, PageHeader } from '../../../components/common/UI';
 import { InsertDataPanel } from '../../../components/search/SearchPanels';
 import SearchPanel from '../../../components/external/SearchPanel';
-import FileBlocks from '../../../components/external/FileBlocks';
+import BlocksGrid from '../../../components/external/BlocksGrid';
 import ExplanationPanel from '../../../components/external/ExplanationPanel';
 import ExternalResult from '../../../components/external/ExternalResult';
 import { useStepPlayer } from '../../../components/external/useStepPlayer';
@@ -112,8 +112,8 @@ export default function SequentialBlocksPage() {
           <div className="lab-layout__visual">
             <section className="panel">
               <h2>Visualización de la estructura</h2>
-              {records ? (
-                <FileBlocks records={records} blockSize={blockSize} total={Number(count) || 0} activeBlock={activeBlock} activeSlot={activeSlot} foundPosition={result?.found ? result.position : null} />
+              {records != null ? (
+                <BlocksGrid records={records} blockSize={blockSize} total={Number(count) || 0} activeBlock={activeBlock} activeSlot={activeSlot} foundPosition={result?.found ? result.position : null} />
               ) : <div className="visualization-placeholder"><span>▤</span><p>Crea la estructura para comenzar.</p></div>}
             </section>
             {result && (
