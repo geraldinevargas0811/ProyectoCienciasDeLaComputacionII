@@ -5,7 +5,7 @@ import StepControls from './StepControls';
 // <small> y el control de botones embebido en el mismo panel.
 export default function ExplanationPanel({
   heading = 'Visualización del algoritmo',
-  index = 0,
+  stepIndex = 0,
   total = 0,
   playing = false,
   description,
@@ -17,7 +17,7 @@ export default function ExplanationPanel({
   reset,
   disabled = false,
 }) {
-  const label = `Paso ${Math.min(index + 1, Math.max(total, 1))} de ${total}`;
+  const label = `Paso ${Math.min(stepIndex + 1, Math.max(total, 1))} de ${total}`;
   return (
     <section className="panel">
       <h2>{heading}</h2>
@@ -28,7 +28,7 @@ export default function ExplanationPanel({
       </div>
       {total > 0 && (
         <StepControls
-          stepIndex={index}
+          stepIndex={stepIndex}
           total={total}
           playing={playing}
           start={start}

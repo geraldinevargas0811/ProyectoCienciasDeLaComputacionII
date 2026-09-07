@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, PageHeader } from '../../../components/common/UI';
 import DynamicViz from '../../../components/external/DynamicViz';
-import ExplanationPanel from '../../../components/external/ExplanationPanel';
+import DynamicStepDetail from '../../../components/external/DynamicStepDetail';
 import Tabs from '../../../components/external/Tabs';
 import { useStepPlayer } from '../../../components/external/useStepPlayer';
 import { generateKeys, validKey, keyLengthError } from '../../../utils/external/dataGenerators';
@@ -40,7 +40,7 @@ export default function DynamicPage() {
 
   const create = () => {
     const N = Number(initial);
-    if (!Number.isInteger(N) || N < 1) { setNotice({ type: 'error', text: 'Indica un número inicial de cubetas válido.' }); return; }
+    if (!Number.isInteger(N) || N < 2 || N % 2 !== 0) { setNotice({ type: 'error', text: 'El número inicial de cubetas debe ser par y mayor o igual a 2.' }); return; }
     setCreated(true);
     setKeys([]);
     setSim(null);
@@ -70,7 +70,7 @@ export default function DynamicPage() {
   const runSim = () => {
     if (!keys.length) return setNotice({ type: 'error', text: 'Primero ingresa las claves a insertar.' });
     const N = Number(initial);
-    if (!Number.isInteger(N) || N < 1) return setNotice({ type: 'error', text: 'Indica un número inicial de cubetas válido.' });
+    if (!Number.isInteger(N) || N < 2 || N % 2 !== 0) return setNotice({ type: 'error', text: 'El número inicial de cubetas debe ser par y mayor o igual a 2.' });
     const mode = tab === 'partial' ? 'partial' : 'total';
     const reduce = tab === 'reductions';
     const result = runDynamicSim({ keys, initial: N, mode, high: 0.75, low: 0.4, reduce });
@@ -81,20 +81,6 @@ export default function DynamicPage() {
   const isEvent = step && ['expansion', 'reduction'].includes(step.kind);
   const bucketCount = step?.buckets?.flat()?.length ?? 0;
 
-  const meta = [];
-  if (isEvent) {
-    meta.push(`Accesos antes: ${step.accessBefore}`);
-    meta.push(`Accesos después: ${step.accesses}`);
-    meta.push(`Registros movidos: ${step.moved}`);
-    meta.push(`Permanecen: ${step.kept !== undefined ? step.kept : 'todos'}`);
-  } else {
-    meta.push(step?.kind === 'insert' ? `Cubeta: ${step.position}` : `Cubetas (M): ${step?.M ?? '—'}`);
-    meta.push(`Registros: ${bucketCount}`);
-    meta.push(`Densidad: ${step?.density ?? '—'}`);
-    meta.push(`Accesos: ${step?.accesses ?? 0}`);
-    meta.push(`Operaciones (c): ${step?.c ?? 0}`);
-  }
-
   const lastInsertedKey = (() => {
     if (!sim) return null;
     let last = null;
@@ -102,6 +88,14 @@ export default function DynamicPage() {
       if (sim.steps[i].kind === 'insert') last = sim.steps[i].key;
     }
     return last;
+  })();
+
+  const wasCollision = (() => {
+    if (!sim || step?.kind !== 'insert') return false;
+    const idx = player.stepIndex;
+    const prev = sim.steps[idx]?.buckets?.[step.position - 1];
+    const count = prev?.length ?? 0;
+    return count > 1;
   })();
 
   return (
@@ -113,7 +107,7 @@ export default function DynamicPage() {
           <section className="panel">
             <h2>Crear estructura</h2>
             <div className="form-grid">
-              <label>N (cantidad inicial de cubetas)<input type="number" min="1" step="1" inputMode="numeric" value={initial} onChange={(event) => setInitial(digitsOnly(event.target.value))} /></label>
+              <label>N (cantidad inicial de cubetas — par)<input type="number" min="2" step="2" inputMode="numeric" value={initial} onChange={(event) => setInitial(digitsOnly(event.target.value))} /></label>
               <label>Dígitos de las claves<select value={digits} onChange={(event) => { setDigits(event.target.value); setKeys([]); setSim(null); }}>{digitOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
             </div>
             {tab === 'reductions' && <p className="notice">La simulación inserta primero las claves (con sus expansiones) y luego elimina la mitad de ellas automáticamente para provocar las reducciones y mostrar el proceso contrario.</p>}
@@ -188,11 +182,17 @@ export default function DynamicPage() {
             <div className="stat"><span>c</span><strong>{step?.c ?? 0}</strong></div>
           </section>
           {sim && (
-            <ExplanationPanel
-              {...player}
-              currentKey={step?.key ?? null}
-              description={step?.description}
-              meta={meta}
+            <DynamicStepDetail
+              step={step}
+              stepIndex={player.stepIndex}
+              total={player.total}
+              playing={player.playing}
+              activeBucket={step?.kind === 'insert' || step?.kind === 'remove' ? step.position : null}
+              collision={wasCollision}
+              start={player.start}
+              pause={player.pause}
+              next={player.next}
+              reset={player.reset}
             />
           )}
         </div>

@@ -14,7 +14,6 @@ import SequentialIndexPage from './pages/Searches/External/SequentialIndexPage';
 import BinaryFilePage from './pages/Searches/External/BinaryFilePage';
 import FuncHashPage from './pages/Searches/External/FuncHashPage';
 import DynamicPage from './pages/Searches/External/DynamicPage';
-import ComparePage from './pages/Searches/External/ComparePage';
 import GraphsPage from './pages/Graphs/GraphsPage';
 
 // Cada algoritmo se envuelve en un componente propio para que React monte/desmonte
@@ -38,9 +37,7 @@ function resolvePage(path, navigate) {
   if (path === '/busquedas/externa/binaria') return <BinaryFilePage />;
   if (path === '/busquedas/externa/hash') return <FuncHashPage />;
   if (path === '/busquedas/externa/dinamicas') return <DynamicPage />;
-  if (path === '/busquedas/externa/comparacion') return <ComparePage />;
   if (path === '/busquedas/interna/huffman') return <HuffmanPage />;
-  if (path === '/busquedas/externa') return <ExternalPage />;
   if (path === '/grafos') return <GraphsPage />;
   return <HomePage navigate={navigate} />;
 }

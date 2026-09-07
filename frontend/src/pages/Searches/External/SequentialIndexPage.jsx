@@ -109,7 +109,7 @@ export default function SequentialIndexPage() {
               <Button onClick={createFile}>Crear estructura</Button>
             </section>
             {loaded && <InsertDataPanel insertedCount={records?.length ?? 0} total={Number(count) || 0} onInsert={insertManual} onGenerate={generate} />}
-            {loaded && <SearchPanel onSearch={runSearch} maxLength={Number(digits)} />}
+            {loaded && <SearchPanel onSearch={runSearch} onClear={clearFile} maxLength={Number(digits)} />}
             {result && <ExternalResult result={{ ...result, key: lastTarget }} timeMs={timeMs} />}
           </div>
           <div className="lab-layout__visual">

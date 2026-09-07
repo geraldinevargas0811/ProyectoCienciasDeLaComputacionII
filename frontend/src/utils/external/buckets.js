@@ -16,7 +16,7 @@ import { hashKey } from './hashFunctions';
 
 /** Copia profunda del directorio de cubetas para congelar el estado de cada paso. */
 export function cloneDirectory(directory) {
-  return directory.map((cubeta) => cubeta.blocks.map((block) => [...block]));
+  return directory.map((cubeta) => ({ blocks: cubeta.blocks.map((block) => [...block]) }));
 }
 
 /** Construye el archivo de cubetas insertando las claves una a una. */
@@ -114,6 +114,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
     position: p,
     accesses,
     comparisons,
+    transform: calc.text,
     directory: snapshot(),
     description: `CLAVE → FUNCIÓN HASH → Cubeta: ${calc.text}. La clave ${target} debe localizarse en la Cubeta ${p}.`,
   });
@@ -127,6 +128,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
       block: bi,
       accesses,
       comparisons,
+      transform: calc.text,
       directory: snapshot(),
       description: `Acceso ${accesses} a disco: se lee el bloque ${blockName} de la Cubeta ${p}.`,
     });
@@ -150,6 +152,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
             slot: si,
             accesses,
             comparisons,
+            transform: calc.text,
             directory: snapshot(),
             description: `Comparación ${comparisons}: ${block[si]} == ${target}: COINCIDE. Clave encontrada en la Cubeta ${p}, bloque ${blockName}, posición ${si + 1} dentro del bloque.`,
           }],
@@ -162,6 +165,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
         slot: si,
         accesses,
         comparisons,
+        transform: calc.text,
         directory: snapshot(),
         description: `Comparación ${comparisons}: ${block[si]} vs ${target}: no coincide, se continúa el desplazamiento dentro de la cubeta.`,
       });
@@ -181,6 +185,7 @@ export function searchBucketFile(target, { directory, size, capacity, hashFuncti
       position: p,
       accesses,
       comparisons,
+      transform: calc.text,
       directory: snapshot(),
       description: `Se recorrió la Cubeta ${p} y sus bloques de desbordamiento (${accesses} accesos, ${comparisons} comparaciones): la clave ${target} no se encuentra en el archivo.`,
     }],
