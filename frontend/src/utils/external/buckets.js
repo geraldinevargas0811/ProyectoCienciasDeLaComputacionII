@@ -16,7 +16,7 @@ import { hashKey } from './hashFunctions';
 
 /** Copia profunda del directorio de cubetas para congelar el estado de cada paso. */
 export function cloneDirectory(directory) {
-  return directory.map((cubeta) => cubeta.blocks.map((block) => [...block]));
+  return directory.map((cubeta) => ({ blocks: cubeta.blocks.map((block) => [...block]) }));
 }
 
 /** Construye el archivo de cubetas insertando las claves una a una. */
