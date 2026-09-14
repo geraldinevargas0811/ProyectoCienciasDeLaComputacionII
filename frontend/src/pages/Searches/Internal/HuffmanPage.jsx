@@ -255,7 +255,7 @@ export default function HuffmanPage() {
       <div className="huffman-layout">
         <div className="lab-layout__controls">
           <section className="panel">
-            <h2>Ingreso de texto</h2>
+            <h2>Operaciones</h2>
             <label>Palabra o texto
               <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ej. CIENCIAS o HOLA MUNDO" />
             </label>
@@ -280,6 +280,19 @@ export default function HuffmanPage() {
             <div className="step-controls" style={{ justifyContent: 'flex-start' }}>
               <Button onClick={process}>Procesar texto</Button>
             </div>
+            {result && (
+              <>
+                <div className="operation">
+                  <label>Buscar carácter<input maxLength="1" value={charSearch} onChange={(e) => setCharSearch(e.target.value)} placeholder="Ej. C" /></label>
+                  <Button variant="secondary" onClick={runCharSearch}>Buscar</Button>
+                </div>
+                <div className="operation">
+                  <label>Buscar texto<input value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="Ej. CIENCIAS" /></label>
+                  <Button variant="secondary" onClick={runTextSearch}>Codificar</Button>
+                </div>
+                <Button variant="secondary" className="operation-clear" onClick={resetAll}>Reiniciar</Button>
+              </>
+            )}
           </section>
 
           {result && (
@@ -367,21 +380,6 @@ export default function HuffmanPage() {
               <p className="huffman-data-line"><strong>Bits Huffman:</strong> {result.finalBits}</p>
               <p className="huffman-data-line"><strong>Ahorro:</strong> {result.savings} bits</p>
               <p className="huffman-data-line"><strong>Reducción:</strong> {result.reduction.toFixed(2)}%</p>
-            </section>
-          )}
-
-          {result && (
-            <section className="panel">
-              <h2>Búsquedas</h2>
-              <div className="operation">
-                <label>Buscar carácter<input maxLength="1" value={charSearch} onChange={(e) => setCharSearch(e.target.value)} placeholder="Ej. C" /></label>
-                <Button variant="secondary" onClick={runCharSearch}>Buscar</Button>
-              </div>
-              <div className="operation">
-                <label>Buscar texto<input value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="Ej. CIENCIAS" /></label>
-                <Button variant="secondary" onClick={runTextSearch}>Codificar</Button>
-              </div>
-              <Button variant="secondary" className="operation-clear" onClick={resetAll}>Reiniciar</Button>
             </section>
           )}
 

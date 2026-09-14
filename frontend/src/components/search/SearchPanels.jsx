@@ -10,6 +10,7 @@ const keySizeOptions = [
   ['1', '1 dígito'],
   ['2', '2 dígitos'],
   ['3', '3 dígitos'],
+  ['4', '4 dígitos'],
 ];
 
 const hashFunctionOptions = [
@@ -38,6 +39,7 @@ export function CreateStructurePanel({ hash = false, size, onSizeChange, keySize
         <label>Solución de colisiones<select value={collisionMethod} onChange={(event) => onCollisionMethodChange?.(event.target.value)}>{collisionMethodOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       </>}
     </div>
+    {hash && <p className="collision-hint">Debes seleccionar la solución de colisiones antes de crear la estructura. Si no seleccionas ninguna, se utilizará la solución lineal por defecto.</p>}
     {message && <p className={`validation-message validation-message--${message.type}`} role="status">{message.text}</p>}
     <Button onClick={onCreate} disabled={busy}>Crear estructura</Button>
   </section>;
@@ -114,6 +116,106 @@ export function OperationsPanel({ disabled = false, onSearch, onDelete, onClear 
   </section>;
 }
 
+export function OperationsBlock({
+  disabled = false,
+  busy = false,
+  insertedCount = 0,
+  total = 0,
+  fieldLabel = null,
+  manualLabel = null,
+  placeholder = 'Clave numérica',
+  insertLabel = 'Insertar',
+  inputMode = 'numeric',
+  filter = digitsOnly,
+  maxKeyLength = null,
+  manualMaxLength = undefined,
+  autoCount = null,
+  onInsert,
+  onGenerate,
+  onSearch,
+  onDelete,
+  onClear,
+  actionLabel = null,
+  onAction = null,
+  actionDisabled = false,
+  clearLabel = 'Limpiar',
+  clearLocked = true,
+  unlimited = false,
+  children,
+}) {
+  const [mode, setMode] = useState('manual');
+  const [inputValue, setInputValue] = useState('');
+  const [searchKey, setSearchKey] = useState('');
+  const [deleteKey, setDeleteKey] = useState('');
+  const [message, setMessage] = useState(null);
+  const remaining = Math.max(total - insertedCount, 0);
+  const ready = unlimited ? !busy : !busy && remaining > 0;
+  const submit = async () => {
+    const response = await onInsert?.(inputValue);
+    if (response) {
+      setMessage(response);
+      if (response.type === 'success') setInputValue('');
+    }
+  };
+  const generate = async () => { const response = await onGenerate?.(); if (response) setMessage(response); };
+  const runSearch = async () => {
+    if (!searchKey) { setMessage({ type: 'error', text: 'Indica la clave a buscar.' }); return; }
+    const response = await onSearch?.(searchKey);
+    if (response) setMessage(response);
+  };
+  const runDelete = async () => {
+    if (!deleteKey) { setMessage({ type: 'error', text: 'Indica la clave a eliminar.' }); return; }
+    const response = await onDelete?.(deleteKey);
+    if (response) setMessage(response);
+  };
+  const runClear = async () => { const response = await onClear?.(); if (response) setMessage(response); };
+  const runAction = async () => { const response = await onAction?.(); if (response) setMessage(response); };
+  const showIngreso = Boolean(onInsert && onGenerate);
+  return <section className="panel">
+    <h2>Operaciones</h2>
+    {showIngreso && (
+      <>
+        <div className="segmented">
+          <button type="button" className={`segmented__btn ${mode === 'manual' ? 'active' : ''}`} onClick={() => setMode('manual')}>Manual</button>
+          <button type="button" className={`segmented__btn ${mode === 'automatic' ? 'active' : ''}`} onClick={() => setMode('automatic')}>Automático</button>
+        </div>
+        {mode === 'manual' ? (
+          <div className="manual-entry">
+            <label>{manualLabel ?? fieldLabel ?? `Dato ${insertedCount + 1}`}<input inputMode={inputMode} maxLength={manualMaxLength} value={inputValue} onChange={(event) => setInputValue(filter(event.target.value))} placeholder={placeholder} /></label>
+            <Button variant="secondary" disabled={!ready} onClick={submit}>{insertLabel}</Button>
+          </div>
+        ) : autoCount ? (
+          <div className="automatic-entry">
+            <label>Cantidad<input type="number" min="1" step="1" inputMode="numeric" value={autoCount.value} onChange={(event) => autoCount.onChange(digitsOnly(event.target.value))} /></label>
+            <Button variant="secondary" onClick={generate} style={{ marginTop: 7 }}>Generar automáticamente</Button>
+          </div>
+        ) : (
+          <div className="automatic-entry">
+            <p className="notice">Se generarán {remaining} clave{remaining === 1 ? '' : 's'} única{remaining === 1 ? '' : 's'}.</p>
+            <Button disabled={!ready} onClick={generate}>{busy ? 'Generando…' : 'Generar automáticamente'}</Button>
+          </div>
+        )}
+      </>
+    )}
+    {children}
+    {actionLabel && onAction && <div className="operation"><Button onClick={runAction} disabled={disabled || actionDisabled} style={{ width: '100%' }}>{actionLabel}</Button></div>}
+    {onSearch && (
+      <div className="operation">
+        <label>Buscar<input inputMode="numeric" maxLength={maxKeyLength} value={searchKey} onChange={(event) => setSearchKey(filter(event.target.value))} placeholder="Clave" /></label>
+        <Button variant="secondary" disabled={disabled} onClick={runSearch}>Buscar</Button>
+      </div>
+    )}
+    {onDelete && (
+      <div className="operation">
+        <label>Eliminar<input inputMode="numeric" maxLength={maxKeyLength} value={deleteKey} onChange={(event) => setDeleteKey(filter(event.target.value))} placeholder="Clave" /></label>
+        <Button variant="secondary" disabled={disabled} onClick={runDelete}>Eliminar</Button>
+      </div>
+    )}
+    {onClear && <Button variant="secondary" disabled={clearLocked ? disabled : false} className="operation-clear" onClick={runClear}>{clearLabel}</Button>}
+    {message && <p className={`validation-message validation-message--${message.type}`} role="status">{message.text}</p>}
+  </section>;
+}
+
 export function VisualizationPanel({ hash = false, binary = false, result, stepIndex = 0, onStepChange, onReset, configuration, playing = false }) {
   if (hash && result) {
     const step = result.steps[stepIndex];
@@ -124,7 +226,7 @@ export function VisualizationPanel({ hash = false, binary = false, result, stepI
   }
   if (!hash && result) {
     const step = result.steps[stepIndex];
-    return <section className="panel"><h2>Paso a paso</h2><div className="algorithm-step" aria-live="polite"><span>Paso {stepIndex + 1} de {result.steps.length}</span>{binary && step?.currentIndex !== undefined && <small>Inicio: {step.lower} · Fin: {step.upper} · Centro: {step.currentIndex}{step.middleValue !== undefined ? ` · Valor central: ${step.middleValue}` : ''}</small>}<p>{step?.description}</p>{step?.comparisons !== undefined && <small>Comparaciones acumuladas: {step.comparisons}</small>}</div><div className="step-controls"><Button variant="secondary" disabled={stepIndex === 0} onClick={() => onStepChange?.(stepIndex - 1)}>Anterior</Button><Button variant="secondary" disabled={stepIndex >= result.steps.length - 1} onClick={() => onStepChange?.(stepIndex + 1)}>Siguiente</Button>{result.steps.length > 1 && <Button variant="secondary" disabled={stepIndex >= result.steps.length - 1} onClick={() => onStepChange?.(result.steps.length - 1)}>Último paso</Button>}{onReset && <Button variant="secondary" onClick={onReset}>Reiniciar</Button>}</div></section>;
+    return <section className="panel"><h2>Paso a paso</h2><div className="algorithm-step" aria-live="polite"><span>Paso {stepIndex + 1} de {result.steps.length}</span>{binary && step?.currentIndex !== undefined && <small>Inicio: {step.lower + 1} · Fin: {step.upper + 1} · Centro: {step.currentIndex + 1}{step.middleValue !== undefined ? ` · Valor central: ${step.middleValue}` : ''}</small>}<p>{step?.description}</p>{step?.comparisons !== undefined && <small>Comparaciones acumuladas: {step.comparisons}</small>}</div><div className="step-controls"><Button variant="secondary" disabled={stepIndex === 0} onClick={() => onStepChange?.(stepIndex - 1)}>Anterior</Button><Button variant="secondary" disabled={stepIndex >= result.steps.length - 1} onClick={() => onStepChange?.(stepIndex + 1)}>Siguiente</Button>{result.steps.length > 1 && <Button variant="secondary" disabled={stepIndex >= result.steps.length - 1} onClick={() => onStepChange?.(result.steps.length - 1)}>Último paso</Button>}{onReset && <Button variant="secondary" onClick={onReset}>Reiniciar</Button>}</div></section>;
   }
   return <section className="panel"><h2>Paso a paso</h2><div className="visualization-placeholder"><span>○</span></div></section>;
 }
@@ -133,5 +235,5 @@ export function ResultPanel({ result, binary = false }) {
   const isDelete = result?.type === 'delete';
   let status = 'Pendiente';
   if (result) status = isDelete ? (result.found ? 'Eliminado' : 'No encontrado') : (result.found ? 'Encontrado' : 'No encontrado');
-  return <section className="panel result-panel"><h2>Resultado</h2><div className="result-grid"><div><span>Resultado</span><strong>{status}</strong></div><div><span>Posición</span><strong>{result?.found ? result.index : '—'}</strong></div><div><span>Comparaciones</span><strong>{result ? result.comparisons : '—'}</strong></div><div><span>Complejidad</span><strong>{binary ? 'O(log n)' : 'O(n)'}</strong></div></div></section>;
+  return <section className="panel result-panel"><h2>Resultado</h2><div className="result-grid"><div><span>Resultado</span><strong>{status}</strong></div><div><span>Posición</span><strong>{result?.found ? (binary ? result.index + 1 : result.index) : '—'}</strong></div><div><span>Comparaciones</span><strong>{result ? result.comparisons : '—'}</strong></div><div><span>Complejidad</span><strong>{binary ? 'O(log n)' : 'O(n)'}</strong></div></div></section>;
 }

@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../../../components/common/UI';
 import MemoryStructure from '../../../components/memory/MemoryStructure';
-import { CreateStructurePanel, InsertDataPanel, OperationsPanel, ResultPanel, VisualizationPanel } from '../../../components/search/SearchPanels';
+import { CreateStructurePanel, OperationsBlock, ResultPanel, VisualizationPanel } from '../../../components/search/SearchPanels';
 import { binaryDelete, binarySearch, isSortedAscending, sequentialDelete, sequentialSearch } from '../../../utils/searchAlgorithms';
 
 const generateKeys = (count, digits) => {
-  const minimum = digits === 1 ? 0 : 10 ** (digits - 1);
-  const available = 10 ** digits - minimum;
-  if (count > available) return null;
+  const maximum = 10 ** digits;
+  if (count > maximum) return null;
   const generated = new Set();
-  while (generated.size < count) generated.add(String(Math.floor(Math.random() * available) + minimum));
+  while (generated.size < count) generated.add(String(Math.floor(Math.random() * maximum)).padStart(digits, '0'));
   return [...generated];
 };
 
@@ -105,7 +104,8 @@ export default function AlgorithmPage({ type }) {
     const searchResult = binary ? binarySearch(filled, normalized) : sequentialSearch(filled, normalized);
     setResult({ ...searchResult, type: 'search' });
     setStepIndex(0);
-    return { type: searchResult.found ? 'success' : 'error', text: searchResult.found ? `Clave ${normalized} encontrada en la celda ${searchResult.index}.` : `La clave ${normalized} no fue encontrada.` };
+    const displayIndex = searchResult.found ? searchResult.index + (binary ? 1 : 0) : null;
+    return { type: searchResult.found ? 'success' : 'error', text: searchResult.found ? `Clave ${normalized} encontrada en la celda ${displayIndex}.` : `La clave ${normalized} no fue encontrada.` };
   };
 
   const runDelete = async (key) => {
@@ -117,18 +117,21 @@ export default function AlgorithmPage({ type }) {
     setResult({ ...deleteResult, type: 'delete' });
     setStepIndex(0);
     if (deleteResult.found) setValues(deleteResult.steps[deleteResult.steps.length - 1].values);
-    return { type: deleteResult.found ? 'success' : 'error', text: deleteResult.found ? `Clave ${normalized} eliminada de la celda ${deleteResult.index}.` : `La clave ${normalized} no fue encontrada: no se eliminó nada.` };
+    const displayIndex = deleteResult.found ? deleteResult.index + (binary ? 1 : 0) : null;
+    return { type: deleteResult.found ? 'success' : 'error', text: deleteResult.found ? `Clave ${normalized} eliminada de la celda ${displayIndex}.` : `La clave ${normalized} no fue encontrada: no se eliminó nada.` };
   };
 
   const runClear = async () => {
     timers.current.forEach((timer) => clearTimeout(timer));
     timers.current = [];
-    if (values) setValues(values.map(() => null));
+    setCreated(false);
+    setValues(null);
     setLastInserted(null);
     setResult(null);
     setStepIndex(0);
     setBusy(false);
-    return { type: 'success', text: 'Estructura vacía: lista para ingresar nuevos datos.' };
+    setCreateMessage({ type: 'success', text: 'Limpieza completa: configura y crea una nueva estructura cuando quieras.' });
+    return { type: 'success', text: 'Limpieza completa: se borraron los datos, la estructura, los pasos y los resultados.' };
   };
 
   const resetSteps = () => {
@@ -140,8 +143,21 @@ export default function AlgorithmPage({ type }) {
   const isDelete = result?.type === 'delete';
   const visibleValues = isDelete && activeStep?.values ? activeStep.values : (values ?? []);
   const showRange = binary && activeStep && !isDelete && activeStep.lower !== undefined;
-  const displayValues = showRange ? visibleValues.slice(activeStep.lower, activeStep.upper + 1) : visibleValues;
-  const startIndex = showRange ? activeStep.lower : undefined;
+  // Conjunto ACUMULATIVO de posiciones evaluadas en todos los pasos hasta el actual:
+  // garantiza que ninguna casilla evaluada anteriormente desaparezca de la vista.
+  const evaluatedPositions = useMemo(() => {
+    if (!result) return [];
+    const positions = new Set();
+    result.steps.slice(0, stepIndex + 1).forEach((step) => {
+      if (step.currentIndex !== undefined && step.currentIndex !== null) positions.add(step.currentIndex);
+      if (step.removedIndex !== undefined && step.removedIndex !== null) positions.add(step.removedIndex);
+    });
+    return [...positions];
+  }, [result, stepIndex]);
+  const displayValues = visibleValues;
+  // En binaria el arreglo completo define las posiciones y el intervalo activo se
+  // acota con "interval" (las evaluadas previamente se agregan de forma acumulativa).
+  const interval = showRange ? [activeStep.lower, activeStep.upper] : undefined;
 
   let highlight = {};
   if (result) {
@@ -161,15 +177,16 @@ export default function AlgorithmPage({ type }) {
       <div className="lab-layout">
         <div className="lab-layout__controls">
           <CreateStructurePanel size={size} onSizeChange={setSize} keySize={keySize} onKeySizeChange={setKeySize} onCreate={createStructure} message={createMessage} />
-          {created && <InsertDataPanel busy={busy} insertedCount={filledCount} total={Number(size) || 0} onInsert={insertManual} onGenerate={generateAutomatic} />}
-          {created && <OperationsPanel disabled={busy} onSearch={runSearch} onDelete={runDelete} onClear={runClear} />}
+          {created && (
+            <OperationsBlock busy={busy} insertedCount={filledCount} total={Number(size) || 0} onInsert={insertManual} onGenerate={generateAutomatic} disabled={busy} onSearch={runSearch} onDelete={runDelete} onClear={runClear} />
+          )}
           {result && <ResultPanel result={result} binary={binary} />}
         </div>
         <div className="lab-layout__visual">
           <section className="panel">
             <h2>Visualización de memoria</h2>
             {created ? (
-              <MemoryStructure values={displayValues} startIndex={startIndex} currentIndex={highlight.currentIndex} discardedIndices={highlight.discardedIndices} foundIndex={highlight.foundIndex} stepAction={highlight.stepAction} />
+              <MemoryStructure values={displayValues} currentIndex={highlight.currentIndex} discardedIndices={highlight.discardedIndices} foundIndex={highlight.foundIndex} stepAction={highlight.stepAction} evaluatedPositions={evaluatedPositions} interval={interval} positionOffset={binary ? 1 : 0} />
             ) : <div className="visualization-placeholder"><span>○</span></div>}
           </section>
           {result && <VisualizationPanel binary={binary} result={result} stepIndex={stepIndex} onStepChange={setStepIndex} onReset={resetSteps} />}

@@ -29,7 +29,7 @@ export function binarySearch(values, key) {
     const direction = found ? 'found' : comparison === 'less' ? 'left' : 'right';
     const nextLower = direction === 'right' ? middle + 1 : lower;
     const nextUpper = direction === 'left' ? middle - 1 : upper;
-    steps.push({ lower, upper, nextLower, nextUpper, currentIndex: middle, middleValue: values[middle], comparison, direction, comparedIndices: [middle], discardedIndices: values.map((_, index) => index).filter((index) => index < lower || index > upper), comparisons, description: found ? `Inicio ${lower}, fin ${upper}, centro ${middle}, valor central ${values[middle]}. ${key} == ${values[middle]}: encontrado.` : `Inicio ${lower}, fin ${upper}, centro ${middle}, valor central ${values[middle]}. ${key} ${comparison === 'less' ? '<' : '>'} ${values[middle]}: continuar hacia la ${direction === 'left' ? 'izquierda' : 'derecha'} (rango ${nextLower}–${nextUpper}).`, found });
+    steps.push({ lower, upper, nextLower, nextUpper, currentIndex: middle, middleValue: values[middle], comparison, direction, comparedIndices: [middle], discardedIndices: values.map((_, index) => index).filter((index) => index < lower || index > upper), comparisons, description: found ? `Inicio ${lower + 1}, fin ${upper + 1}, centro ${middle + 1}, valor central ${values[middle]}. ${key} == ${values[middle]}: encontrado.` : `Inicio ${lower + 1}, fin ${upper + 1}, centro ${middle + 1}, valor central ${values[middle]}. ${key} ${comparison === 'less' ? '<' : '>'} ${values[middle]}: continuar hacia la ${direction === 'left' ? 'izquierda' : 'derecha'} (rango ${nextLower + 1}–${nextUpper + 1}).`, found });
     if (found) return { found: true, index: middle, comparisons, steps };
     lower = nextLower; upper = nextUpper;
   }
@@ -83,12 +83,12 @@ export function binaryDelete(values, key) {
     const nextLower = direction === 'right' ? middle + 1 : lower;
     const nextUpper = direction === 'left' ? middle - 1 : upper;
     const discardedIndices = entries.map((entry) => entry.index).filter((entryIndex) => entryIndex < lower || entryIndex > upper);
-    steps.push({ lower, upper, currentIndex: index, middleValue: value, comparison, direction, discardedIndices, comparisons, description: found ? `Buscar la clave ${key}: la celda ${index} (${value}) coincide; posición encontrada.` : `Buscar la clave ${key}: la celda ${index} (${value}) ${comparison === 'less' ? 'es mayor' : 'es menor'}; continuar por la ${direction === 'left' ? 'izquierda' : 'derecha'}.`, found, action: found ? 'found' : undefined, values: [...values] });
+    steps.push({ lower, upper, currentIndex: index, middleValue: value, comparison, direction, discardedIndices, comparisons, description: found ? `Buscar la clave ${key}: la celda ${index + 1} (${value}) coincide; posición encontrada.` : `Buscar la clave ${key}: la celda ${index + 1} (${value}) ${comparison === 'less' ? 'es mayor' : 'es menor'}; continuar por la ${direction === 'left' ? 'izquierda' : 'derecha'}.`, found, action: found ? 'found' : undefined, values: [...values] });
     if (found) { removedIndex = index; break; }
     lower = nextLower; upper = nextUpper;
   }
   if (removedIndex !== null) {
-    steps.push({ discardedIndices: [], comparisons, description: `Clave ${key} encontrada en la celda ${removedIndex}: se elimina de la estructura.`, found: false, action: 'deleted', removedIndex, values: finalStructureAfterRemoval(values, removedIndex) });
+    steps.push({ discardedIndices: [], comparisons, description: `Clave ${key} encontrada en la celda ${removedIndex + 1}: se elimina de la estructura.`, found: false, action: 'deleted', removedIndex, values: finalStructureAfterRemoval(values, removedIndex) });
     return { type: 'delete', found: true, index: removedIndex, comparisons, steps };
   }
   steps.push({ discardedIndices: entries.map((entry) => entry.index), comparisons, description: `El rango está agotado y la clave ${key} no fue encontrada: no hay nada que eliminar.`, found: false, action: 'notfound', values: [...values] });

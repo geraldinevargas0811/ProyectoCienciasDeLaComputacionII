@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, PageHeader } from '../../../components/common/UI';
+import { OperationsBlock } from '../../../components/search/SearchPanels';
 import { buildSimulation, keyInfo, parseKeys, searchTree } from '../../../utils/residueTrees';
 
 // Configuración del encaje automático del árbol: círculos separados por niveles,
@@ -177,15 +178,11 @@ export default function ResiduesPage() {
   const [m, setM] = useState('2');
   const [created, setCreated] = useState(false);
   const [keys, setKeys] = useState([]);            // claves a insertar (orden de ingreso)
-  const [inputMode, setInputMode] = useState('manual');
-  const [input, setInput] = useState('');
   const [autoCount, setAutoCount] = useState('5');
   const [simulation, setSimulation] = useState(null);
   const [frameIndex, setFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [notice, setNotice] = useState(null);
-  const [search, setSearch] = useState('');
-  const [deleteKey, setDeleteKey] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [searchStep, setSearchStep] = useState(0);
   const timers = useRef([]);
@@ -222,14 +219,13 @@ export default function ResiduesPage() {
     setNotice({ type: 'success', text: 'Estructura lista: ingresa las claves a insertar.' });
   };
 
-  const addManual = () => {
-    const letters = parseKeys(input);
-    if (!letters.length) return setNotice({ type: 'error', text: 'Ingresa una o más letras entre A y Z.' });
+  const addManual = (raw) => {
+    const letters = parseKeys(raw ?? '');
+    if (!letters.length) return { type: 'error', text: 'Ingresa una o más letras entre A y Z.' };
     const next = [...keys];
     letters.forEach((l) => { if (!next.includes(l)) next.push(l); });
     setKeys(next);
-    setInput('');
-    setNotice({ type: 'success', text: `Claves añadidas: ${letters.join(', ')}.` });
+    return { type: 'success', text: `Claves añadidas: ${letters.join(', ')}.` };
   };
 
   const generateAuto = () => {
@@ -237,33 +233,33 @@ export default function ResiduesPage() {
     const pool = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     for (let i = pool.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
     setKeys(pool.slice(0, count));
-    setNotice({ type: 'success', text: `${count} claves únicas generadas en orden aleatorio.` });
+    return { type: 'success', text: `${count} claves únicas generadas en orden aleatorio.` };
   };
 
   const build = () => {
-    if (!keys.length) return setNotice({ type: 'error', text: 'Primero ingresa las claves a insertar.' });
-    if (new Set(keys).size !== keys.length) return setNotice({ type: 'error', text: 'No se permiten letras repetidas.' });
+    if (!keys.length) return { type: 'error', text: 'Primero ingresa las claves a insertar.' };
+    if (new Set(keys).size !== keys.length) return { type: 'error', text: 'No se permiten letras repetidas.' };
     const numericM = multiple ? Number(m) : 1;
     const sim = buildSimulation(keys, type, numericM);
     const totalFrames = buildFrames(sim).length;
     setSimulation(sim);
     setSearchResult(null);
     setFrameIndex(0);
-    setNotice({ type: 'success', text: 'Estructura construida: se muestra la construcción paso a paso.' });
     // Reprogramar el avance tras montar los fotogramas.
     requestAnimationFrame(() => playFrames(0, totalFrames));
+    return { type: 'success', text: 'Estructura construida: se muestra la construcción paso a paso.' };
   };
 
   const currentFrame = frames[frameIndex];
-  const runSearch = () => {
-    const info = keyInfo(search); if (!info) return setNotice({ type: 'error', text: 'La clave a buscar debe ser una letra entre A y Z.' });
-    if (!simulation) return setNotice({ type: 'error', text: 'Primero construye el árbol.' });
+  const runSearch = (raw) => {
+    const info = keyInfo(raw ?? ''); if (!info) return { type: 'error', text: 'La clave a buscar debe ser una letra entre A y Z.' };
+    if (!simulation) return { type: 'error', text: 'Primero construye el árbol.' };
     const result = searchTree(simulation.tree, info.key, type, multiple ? Number(m) : 1);
     setSearchResult(result); setSearchStep(0);
-    setNotice({ type: result.found ? 'success' : 'error', text: result.found ? `${info.key} fue encontrada.` : `${info.key} no existe en el árbol.` });
+    return { type: result.found ? 'success' : 'error', text: result.found ? `${info.key} fue encontrada.` : `${info.key} no existe en el árbol.` };
   };
   const runDelete = () => ({ type: 'error', text: 'La eliminación en los árboles no está implementada aún: revisa el reporte final.' });
-  const runClear = () => { clearTimers(); setCreated(false); setKeys([]); setSimulation(null); setFrameIndex(0); setSearchResult(null); setSearch(''); setDeleteKey(''); setNotice({ type: 'success', text: 'Estructura vacía: lista para comenzar nuevamente.' }); };
+  const runClear = () => { clearTimers(); setCreated(false); setKeys([]); setSimulation(null); setFrameIndex(0); setSearchResult(null); setNotice(null); return { type: 'success', text: 'Estructura vacía: lista para comenzar nuevamente.' }; };
   const activeSearch = searchResult?.steps[searchStep];
 
   const treeActive = (searchResult && activeSearch) ? activeSearch.path : (currentFrame?.active ?? []);
@@ -289,64 +285,47 @@ export default function ResiduesPage() {
           </section>
 
           {created && (
-            <section className="panel">
-              <h2>Ingreso de datos</h2>
-              <div className="segmented">
-                <button type="button" className={`segmented__btn ${inputMode === 'manual' ? 'active' : ''}`} onClick={() => setInputMode('manual')}>Manual</button>
-                <button type="button" className={`segmented__btn ${inputMode === 'automatic' ? 'active' : ''}`} onClick={() => setInputMode('automatic')}>Automático</button>
-              </div>
-              {inputMode === 'manual' ? (
-                <div className="manual-entry">
-                  <label>Claves (A–Z)<input value={input} onChange={(e) => setInput(e.target.value.toUpperCase().replace(/[^A-Z, ]/g, ''))} placeholder="P, R, A" /></label>
-                  <Button variant="secondary" onClick={addManual}>Añadir</Button>
-                </div>
-              ) : (
-                <div className="automatic-entry">
-                  <label>Cantidad<input type="number" min="1" max="26" value={autoCount} onChange={(e) => setAutoCount(e.target.value.replace(/\D/g, ''))} /></label>
-                  <Button variant="secondary" onClick={generateAuto} style={{ marginTop: 7 }}>Generar automáticamente</Button>
+            <OperationsBlock
+              unlimited
+              disabled={!searchEnabled}
+              manualLabel="Claves (A–Z)"
+              placeholder="P, R, A"
+              insertLabel="Añadir"
+              inputMode="text"
+              filter={(value) => value.toUpperCase().replace(/[^A-Z, ]/g, '')}
+              maxKeyLength={1}
+              autoCount={{ value: autoCount, onChange: setAutoCount }}
+              onInsert={addManual}
+              onGenerate={generateAuto}
+              actionLabel={playing ? 'Construyendo…' : 'Construir árbol'}
+              onAction={build}
+              actionDisabled={playing}
+              onSearch={runSearch}
+              onDelete={runDelete}
+              onClear={runClear}
+              clearLocked={false}
+            >
+              {keys.length > 0 && (
+                <div className="keys-panel keys-panel--embed">
+                  <ol className="insertion-order">
+                    {keys.map((k, i) => <li key={k} className={i <= currentKeyIndex && currentKeyIndex >= 0 ? 'active' : ''}>{k}</li>)}
+                  </ol>
                 </div>
               )}
-            </section>
+            </OperationsBlock>
           )}
 
-          {created && keys.length > 0 && (
-            <section className="panel keys-panel">
-              <h2>Claves a insertar</h2>
-              <ol className="insertion-order">
-                {keys.map((k, i) => <li key={k} className={i <= currentKeyIndex && currentKeyIndex >= 0 ? 'active' : ''}>{k}</li>)}
-              </ol>
-              <div className="step-controls"><button type="button" className="button button--primary" onClick={build} disabled={playing}>{playing ? 'Construyendo…' : 'Construir árbol'}</button></div>
-            </section>
-          )}
-
-          {created && (
-            <section className="panel">
-              <h2>Tabla binaria</h2>
-              <table className="binary-table">
-                <thead><tr><th>K</th><th>ABC</th><th>Binario</th></tr></thead>
-                <tbody>
-                  {simulation ? simulation.accepted.map((item, index) => (
-                    <tr key={item.key} className={index === currentKeyIndex ? 'active' : ''}><td>{item.key}</td><td>{item.value}</td><td><code>{item.binary}</code></td></tr>
-                  )) : <tr className="empty"><td colSpan="3">Las claves se muestran al construirlas.</td></tr>}
-                </tbody>
-              </table>
-            </section>
-          )}
-
-          {created && (
-            <section className="panel">
-              <h2>Operaciones</h2>
-              <div className="operation">
-                <label>Buscar<input maxLength="1" value={search} onChange={(e) => setSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} placeholder="Ej. R" /></label>
-                <Button variant="secondary" disabled={!searchEnabled} onClick={runSearch}>Buscar</Button>
-              </div>
-              <div className="operation">
-                <label>Eliminar<input maxLength="1" value={deleteKey} onChange={(e) => setDeleteKey(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} placeholder="Clave" /></label>
-                <Button variant="secondary" disabled={!searchEnabled} onClick={() => { const r = runDelete(); setNotice(r); }}>Eliminar</Button>
-              </div>
-              <Button variant="secondary" className="operation-clear" onClick={() => { const r = runClear(); setNotice(r); }}>Limpiar</Button>
-            </section>
-          )}
+          {created && <section className="panel">
+            <h2>Tabla binaria</h2>
+            <table className="binary-table">
+              <thead><tr><th>K</th><th>ABC</th><th>Binario</th></tr></thead>
+              <tbody>
+                {simulation ? simulation.accepted.map((item, index) => (
+                  <tr key={item.key} className={index === currentKeyIndex ? 'active' : ''}><td>{item.key}</td><td>{item.value}</td><td><code>{item.binary}</code></td></tr>
+                )) : <tr className="empty"><td colSpan="3">Las claves se muestran al construirlas.</td></tr>}
+              </tbody>
+            </table>
+          </section>}
         </div>
 
         <div className="lab-layout__visual">

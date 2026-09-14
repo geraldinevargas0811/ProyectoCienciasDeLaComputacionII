@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, PageHeader } from '../../../components/common/UI';
+import { OperationsBlock } from '../../../components/search/SearchPanels';
 import DynamicViz from '../../../components/external/DynamicViz';
 import DynamicStepDetail from '../../../components/external/DynamicStepDetail';
 import Tabs from '../../../components/external/Tabs';
@@ -10,6 +11,8 @@ import { runDynamicSim } from '../../../utils/external/dynamicHash';
 const digitOptions = [
   ['1', '1 dígito'],
   ['2', '2 dígitos'],
+  ['3', '3 dígitos'],
+  ['4', '4 dígitos'],
 ];
 const digitsOnly = (value) => String(value ?? '').replace(/\D/g, '');
 
@@ -27,8 +30,6 @@ export default function DynamicPage() {
   const [keys, setKeys] = useState([]);
   const [created, setCreated] = useState(false);
   const [notice, setNotice] = useState(null);
-  const [inputMode, setInputMode] = useState('manual');
-  const [input, setInput] = useState('');
   const [autoCount, setAutoCount] = useState('10');
   const [sim, setSim] = useState(null);
 
@@ -47,35 +48,40 @@ export default function DynamicPage() {
     setNotice({ type: 'success', text: 'Estructura creada y vacía: lista para el ingreso de claves.' });
   };
 
-  const addManual = () => {
-    const value = digitsOnly(input);
-    if (!value) return setNotice({ type: 'error', text: 'Indica una clave a ingresar.' });
-    if (!validKey(value, digits)) return setNotice(keyLengthError('insert', digits));
-    if (keys.includes(value)) return setNotice({ type: 'error', text: 'La estructura no admite claves repetidas.' });
+  const addManual = (raw) => {
+    const value = digitsOnly(raw ?? '');
+    if (!value) return { type: 'error', text: 'Indica una clave a ingresar.' };
+    if (!validKey(value, digits)) return keyLengthError('insert', digits);
+    if (keys.includes(value)) return { type: 'error', text: 'La estructura no admite claves repetidas.' };
     setKeys([...keys, value]);
     setSim(null);
-    setInput('');
-    setNotice({ type: 'success', text: `Clave ${value} añadida: revisa las claves a insertar.` });
+    return { type: 'success', text: `Clave ${value} añadida: revisa las claves a insertar.` };
   };
 
   const generateAuto = () => {
     const count = Math.min(Math.max(Number(autoCount) || 1, 1), 99);
     const generated = generateKeys(count, Number(digits));
-    if (!generated) return setNotice({ type: 'error', text: `No es posible generar ${count} claves únicas de ${digits} dígito${digits === '1' ? '' : 's'}.` });
+    if (!generated) return { type: 'error', text: `No es posible generar ${count} claves únicas de ${digits} dígito${digits === '1' ? '' : 's'}.` };
     setKeys(generated);
     setSim(null);
-    setNotice({ type: 'success', text: `${generated.length} claves únicas generadas en orden aleatorio.` });
+    return { type: 'success', text: `${generated.length} claves únicas generadas en orden aleatorio.` };
   };
 
   const runSim = () => {
-    if (!keys.length) return setNotice({ type: 'error', text: 'Primero ingresa las claves a insertar.' });
+    if (!keys.length) return { type: 'error', text: 'Primero ingresa las claves a insertar.' };
     const N = Number(initial);
-    if (!Number.isInteger(N) || N < 2 || N % 2 !== 0) return setNotice({ type: 'error', text: 'El número inicial de cubetas debe ser par y mayor o igual a 2.' });
+    if (!Number.isInteger(N) || N < 2 || N % 2 !== 0) return { type: 'error', text: 'El número inicial de cubetas debe ser par y mayor o igual a 2.' };
     const mode = tab === 'partial' ? 'partial' : 'total';
     const reduce = tab === 'reductions';
     const result = runDynamicSim({ keys, initial: N, mode, high: 0.75, low: 0.4, reduce });
     setSim(result);
-    setNotice({ type: 'success', text: 'Simulación ejecutada: revisa el recorrido paso a paso.' });
+    return { type: 'success', text: 'Simulación ejecutada: revisa el recorrido paso a paso.' };
+  };
+
+  const clearKeys = () => {
+    setKeys([]);
+    setSim(null);
+    return { type: 'success', text: 'Claves vacías: lista para ingresar nuevas claves.' };
   };
 
   const isEvent = step && ['expansion', 'reduction'].includes(step.kind);
@@ -116,34 +122,28 @@ export default function DynamicPage() {
           </section>
 
           {created && (
-            <section className="panel">
-              <h2>Ingreso de datos</h2>
-              <div className="segmented">
-                <button type="button" className={`segmented__btn ${inputMode === 'manual' ? 'active' : ''}`} onClick={() => setInputMode('manual')}>Manual</button>
-                <button type="button" className={`segmented__btn ${inputMode === 'automatic' ? 'active' : ''}`} onClick={() => setInputMode('automatic')}>Automático</button>
-              </div>
-              {inputMode === 'manual' ? (
-                <div className="manual-entry">
-                  <label>Clave<input inputMode="numeric" maxLength={Number(digits)} value={input} onChange={(event) => setInput(digitsOnly(event.target.value))} placeholder="Clave numérica" /></label>
-                  <Button variant="secondary" onClick={addManual}>Añadir</Button>
-                </div>
-              ) : (
-                <div className="automatic-entry">
-                  <label>Cantidad<input type="number" min="1" step="1" inputMode="numeric" value={autoCount} onChange={(event) => setAutoCount(digitsOnly(event.target.value))} /></label>
-                  <Button variant="secondary" onClick={generateAuto} style={{ marginTop: 7 }}>Generar automáticamente</Button>
+            <OperationsBlock
+              unlimited
+              fieldLabel="Clave"
+              insertLabel="Añadir"
+              manualMaxLength={Number(digits)}
+              maxKeyLength={Number(digits)}
+              autoCount={{ value: autoCount, onChange: setAutoCount }}
+              onInsert={addManual}
+              onGenerate={generateAuto}
+              actionLabel={player.playing ? 'Simulando…' : 'Ejecutar simulación'}
+              onAction={runSim}
+              actionDisabled={player.playing}
+              onClear={clearKeys}
+            >
+              {keys.length > 0 && (
+                <div className="keys-panel keys-panel--embed">
+                  <ol className="insertion-order">
+                    {keys.map((k) => <li key={k} className={k === lastInsertedKey ? 'active' : ''}>{k}</li>)}
+                  </ol>
                 </div>
               )}
-            </section>
-          )}
-
-          {created && keys.length > 0 && (
-            <section className="panel keys-panel">
-              <h2>Claves a insertar</h2>
-              <ol className="insertion-order">
-                {keys.map((k) => <li key={k} className={k === lastInsertedKey ? 'active' : ''}>{k}</li>)}
-              </ol>
-              <div className="step-controls"><button type="button" className="button button--primary" onClick={runSim} disabled={player.playing}>{player.playing ? 'Simulando…' : 'Ejecutar simulación'}</button></div>
-            </section>
+            </OperationsBlock>
           )}
 
           {sim && (

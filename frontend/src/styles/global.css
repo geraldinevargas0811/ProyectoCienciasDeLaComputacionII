@@ -61,3 +61,43 @@ button { cursor: pointer; }
 .seq-grid { display: grid; gap: 10px; }.seq-row { display: grid; grid-template-columns: 108px 1fr; gap: 8px; align-items: stretch; transition: opacity .3s ease; }.seq-row__label { display: flex; align-items: center; padding: 0 10px; font-size: .68rem; font-weight: 800; color: #40606d; background: #f0f8f8; border: 1px solid #cbd5e1; border-radius: 6px; transition: background-color .25s ease, color .25s ease; }.seq-row--active .seq-row__label { background: #fdf6df; color: #5c4306; border-color: #c8a53c; }.seq-row--active .seq-row__cells { box-shadow: 0 0 0 2px rgba(200,165,60,.25); border-radius: 8px; }.seq-row--read { opacity: .55; }.seq-row--waiting { opacity: .75; }.seq-row__cells { display: grid; grid-template-columns: repeat(var(--cols), 64px); gap: 6px; padding: 4px; transition: box-shadow .25s ease; }.seq-cell { aspect-ratio: 1; display: grid; place-items: center; align-content: center; gap: 2px; border: 2px solid #274765; border-radius: 6px; background: #fff; color: #274763; transition: background-color .25s ease, box-shadow .25s ease, border-color .25s ease, opacity .25s ease; }.seq-cell__pos { font-size: .58rem; color: #8b99aa; }.seq-cell__key { font-size: 1rem; font-weight: 800; }.seq-cell--empty { border-style: dashed; border-color: #c8d2dc; background: #fafcfd; color: #b9c3ce; }.seq-cell--compared { background: #f3f0dd; border-color: #d9c88a; opacity: .72; }.seq-cell--active { background: #fff8d9; box-shadow: inset 0 0 0 2px #c8a53c; }.seq-cell--found { background: #dff3e8; border-color: #3d8a63; box-shadow: inset 0 0 0 2px #3d8a63; color: #2b6a4d; }.seq-cell--found .seq-cell__pos { color: #2b6a4d; }
 /* ==== BÚSQUEDA POR TRANSFORMACIÓN DE CLAVES — FLUJO Y RECORRIDO EN CUBETAS ==== */
 .bucket-viz { display: grid; gap: 12px; }.search-flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; padding: 12px; border: 1px solid #d7e9e8; border-radius: 8px; background: #fafdfd; }.search-flow__step { flex: 1 1 170px; min-width: 0; display: grid; gap: 4px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; transition: border-color .25s ease, box-shadow .25s ease, background-color .25s ease, transform .25s ease; }.search-flow__step--active { border-color: #c8a53c; background: #fff8d9; box-shadow: 0 0 0 3px rgba(200,165,60,.2); transform: translateY(-2px); }.search-flow__step--active .search-flow__value { color: #5c4306; }.search-flow__label { color: #7a889a; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }.search-flow__value { color: #274763; font-size: 1.05rem; font-weight: 800; }.search-flow__transform { display: block; color: #5c4306; font-size: .7rem; line-height: 1.45; font-family: ui-monospace, monospace; word-break: break-word; }.search-flow__arrow { align-self: center; color: #17646b; font-size: 1.15rem; font-weight: 800; }.bucket-block__tag { display: block; padding: 3px 10px 0; text-align: center; color: #8b99aa; font-size: .56rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }.bucket-block--read { opacity: .62; }.bucket-block--read .bucket-block__tag::after { content: ' · consultado'; }.bucket-block--waiting { opacity: .45; }.bucket-block__over--active { color: #b54747; font-weight: 800; }.bucket-slot--compared { background: #f3f0dd; color: #9a7418; }.legend__chip--key { background: #fff8d9; border: 2px solid #c8a53c; }
+
+/* ==== BÚSQUEDAS INTERNAS — CORRECCIONES FINALES ==== */
+
+/* Botones principales más compactos y uniformes (no se usa Inicio como referencia). */
+.button { min-height: 34px; padding: 6px 13px; font-size: .85rem; border-radius: 6px; }
+.navbar__links button { padding: 6px 11px; font-size: .84rem; border-radius: 6px; }
+
+/* Indicación de solución de colisiones antes de crear la estructura. */
+.collision-hint { padding: 10px 12px; border-left: 3px solid #bf8c18; background: #fffaf0; color: #7a5b12; font-size: .8rem; line-height: 1.5; margin: 0 0 16px; }
+
+/* Botones del dashboard inicial (Búsquedas / Grafos): compactos y uniformes entre sí. */
+.option-grid--home { gap: 18px; max-width: 760px; }
+.option-card--home { min-height: 96px; padding: 16px 20px; gap: 10px; }
+.option-card--home .option-card__icon { width: 30px; height: 30px; border-radius: 6px; font-size: 1rem; }
+.option-card--home h2 { font-size: 1rem; }
+.option-card--home .option-card__arrow { right: 14px; font-size: .95rem; }
+
+/* Botones de navegación (menús de Búsquedas): tamaño uniforme y compacto, al mismo estilo que el dashboard. */
+.option-grid .option-card { min-height: 96px; padding: 16px 20px; gap: 10px; }
+.option-grid .option-card .option-card__icon { width: 30px; height: 30px; border-radius: 6px; font-size: 1rem; }
+.option-grid .option-card h2 { font-size: 1rem; }
+.option-grid .option-card .option-card__arrow { right: 14px; font-size: .95rem; }
+
+/* Menú lateral de Búsquedas externas: "Búsqueda binaria" con el mismo peso tipográfico que los grupos. */
+.sidebar__items .sidebar__link { font-weight: 700; }
+
+/* Previews integrados dentro del bloque único "Operaciones". */
+.keys-panel--embed { border-top: 1px solid #e6ebf1; margin: 16px 0; padding-top: 14px; }
+.keys-panel--embed p, .keys-panel--embed ol { margin-top: 0; }
+
+/* Tablas grandes: contenedor de tamaño fijo con scroll interno y zoom propio. */
+.hash-table-viewer, .structure-viewer { display: grid; gap: 8px; }
+.hash-table-viewer__scroll, .structure-viewer__scroll { max-height: 560px; overflow: auto; border: 1px solid #dbe5ea; border-radius: 6px; background: #fff; padding: 6px; }
+.hash-array__ellipsis { min-height: 42px; display: grid; place-items: center; color: #98a6b5; font-size: 1rem; letter-spacing: .2em; border-bottom: 1px solid #eef2f6; background: #fbfcfd; user-select: none; }
+
+/* Arreglo secuencial/binario grande: scroll vertical interno sin expandir la página. */
+.structure-viewer__scroll { max-height: 480px; }
+.memory-structure--compact, .memory-structure--compact .memory-structure { width: 100%; }
+.memory-structure--compact .memory-cell { min-height: 40px; }
+.memory-cell--ellipsis { min-height: 40px; display: grid; place-items: center; color: #98a6b5; font-size: 1rem; letter-spacing: .2em; border-bottom: 1px solid #eef2f6; background: #fbfcfd; user-select: none; }

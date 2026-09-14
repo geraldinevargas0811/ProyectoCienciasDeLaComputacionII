@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../../../components/common/UI';
 import MemoryStructure from '../../../components/memory/MemoryStructure';
-import { CreateStructurePanel, InsertDataPanel, OperationsPanel, VisualizationPanel } from '../../../components/search/SearchPanels';
+import { CreateStructurePanel, OperationsBlock, VisualizationPanel } from '../../../components/search/SearchPanels';
 import { deleteHash, searchHash, transformHash } from '../../../services/hashApi';
 
 const generateKeys = (count, digits) => {
-  const minimum = digits === 1 ? 0 : 10 ** (digits - 1);
-  const available = 10 ** digits - minimum;
-  if (count > available) return null;
+  const maximum = 10 ** digits;
+  if (count > maximum) return null;
   const generated = new Set();
-  while (generated.size < count) generated.add(String(Math.floor(Math.random() * available) + minimum));
+  while (generated.size < count) generated.add(String(Math.floor(Math.random() * maximum)).padStart(digits, '0'));
   return [...generated];
 };
 
@@ -176,14 +175,23 @@ export default function HashPage() {
     try {
       const active = configuration ?? currentConfiguration();
       const deleteResult = await deleteHash({ keys: insertedKeys, size: active.size, hashFunction: active.hashFunction, collisionMethod: active.collisionMethod, target });
+      const remainingKeys = insertedKeys.filter((key) => key !== target);
+      setInsertedKeys(remainingKeys);
       setResult(deleteResult);
       setConfiguration(active);
       setStepIndex(0);
-      playSteps(0, deleteResult.steps.length);
-      // La clave eliminada se retira de las claves que representan el estado persistente de la tabla,
-      // de modo que las operaciones posteriores (inserción, búsqueda) parten de la tabla resultante.
-      setInsertedKeys((current) => current.filter((key) => key !== target));
-      return { type: 'success', text: `Clave ${target} eliminada: revisa el recorrido paso a paso.` };
+      playSteps(0, deleteResult.steps.length, async () => {
+        if (remainingKeys.length > 0) {
+          try {
+            const rebuilt = await buildTable(remainingKeys, active);
+            setResult(rebuilt);
+            setStepIndex(rebuilt.steps.length - 1);
+          } catch { /* silenciar errores de reconstrucción */ }
+        } else {
+          setResult(null);
+        }
+      });
+      return { type: 'success', text: `Clave ${target} eliminada: la tabla se reorganiza automáticamente.` };
     } catch (error) {
       return { type: 'error', text: error instanceof TypeError ? 'No fue posible conectar con el backend.' : error.message };
     } finally {
@@ -193,13 +201,14 @@ export default function HashPage() {
 
   const runClear = async () => {
     clearTimers();
+    setCreated(false);
     setResult(null);
     setInsertedKeys([]);
     setPendingKeys(null);
     setConfiguration(null);
     setStepIndex(0);
-    setCreateMessage({ type: 'success', text: 'Tabla reiniciada: lista para comenzar de nuevo.' });
-    return { type: 'success', text: 'Tabla limpia: configura y crea una nueva estructura cuando quieras.' };
+    setCreateMessage({ type: 'success', text: 'Todo reiniciado: configura y crea una nueva estructura cuando quieras.' });
+    return { type: 'success', text: 'Limpieza completa: se borraron todas las claves, la estructura y los resultados.' };
   };
 
   const onHashChange = (next) => {
@@ -217,6 +226,32 @@ export default function HashPage() {
   const isSearchRun = result?.algorithm?.startsWith('Búsqueda');
   const isDeleteRun = result?.algorithm?.startsWith('Eliminación');
   const finalStep = result?.steps?.[result.steps.length - 1];
+  // Conjunto ACUMULATIVO (1‑based) de posiciones evaluadas en todos los pasos hasta el
+  // actual: las casillas que ya fueron probadas/colisionadas permanecen visibles.
+  const evaluatedPositions = useMemo(() => {
+    if (!result) return [];
+    const positions = new Set();
+    result.steps.slice(0, stepIndex + 1).forEach((step) => {
+      if (step.initial > 0) positions.add(step.initial);
+      if (step.current > 0) positions.add(step.current);
+      (step.attempts ?? []).forEach((attempt) => { if (attempt.position > 0) positions.add(attempt.position); });
+    });
+    return [...positions];
+  }, [result, stepIndex]);
+
+  const nestedEvaluatedPositions = useMemo(() => {
+    if (!result) return {};
+    const byArray = {};
+    result.steps.slice(0, stepIndex + 1).forEach((step) => {
+      if (step.currentArray > 0) {
+        const position = step.initial > 0 ? step.initial : step.current;
+        if (position > 0) (byArray[step.currentArray] = byArray[step.currentArray] || new Set()).add(position);
+      }
+    });
+    const map = {};
+    Object.keys(byArray).forEach((key) => { map[key] = [...byArray[key]]; });
+    return map;
+  }, [result, stepIndex]);
 
   return (
     <>
@@ -224,50 +259,65 @@ export default function HashPage() {
       <div className="lab-layout">
         <div className="lab-layout__controls">
           <CreateStructurePanel hash size={size} onSizeChange={setSize} keySize={keySize} onKeySizeChange={setKeySize} hashFunction={hashFunction} onHashFunctionChange={onHashChange} collisionMethod={collisionMethod} onCollisionMethodChange={onCollisionChange} onCreate={createTable} busy={busy} message={createMessage} />
-          {created && <InsertDataPanel fieldLabel="Clave" busy={busy} insertedCount={insertedKeys.length} total={Number(size) || 0} onInsert={insertKey} onGenerate={generateAutomatic} />}
-          {pendingKeys && (
-            <section className="panel keys-panel">
-              <h2>Claves a ingresar</h2>
-              <p>{pendingKeys.join(' → ')}</p>
-              <small>Se insertarán en exactamente este orden.</small>
-              <div className="step-controls"><button type="button" className="button button--primary" onClick={insertPending} disabled={busy || playing}>{playing ? 'Insertando…' : 'Insertar todas'}</button></div>
-            </section>
+          {created && (
+            <OperationsBlock fieldLabel="Clave" busy={busy || playing} insertedCount={insertedKeys.length} total={Number(size) || 0} onInsert={insertKey} onGenerate={generateAutomatic} disabled={busy || playing} onSearch={runSearch} onDelete={runDelete} onClear={runClear}>
+              {pendingKeys && (
+                <div className="keys-panel keys-panel--embed">
+                  <p>{pendingKeys.join(' → ')}</p>
+                  <small>Se insertarán en exactamente este orden.</small>
+                  <div className="step-controls"><button type="button" className="button button--primary" onClick={insertPending} disabled={busy || playing}>{playing ? 'Insertando…' : 'Insertar todas'}</button></div>
+                </div>
+              )}
+            </OperationsBlock>
           )}
-          {created && <OperationsPanel disabled={busy || playing} onSearch={runSearch} onDelete={runDelete} onClear={runClear} />}
         </div>
         <div className="lab-layout__visual">
-          <section className="panel">
-            <h2>Visualización de la tabla hash</h2>
-            <MemoryStructure
-              hash
-              values={visibleTable}
-              currentIndex={activeStep?.current}
-              initialIndex={activeStep?.initial}
-              currentArray={activeStep?.currentArray ?? 0}
-              currentNode={activeStep?.currentNode ?? -1}
-              collisionIndices={activeStep?.attempts?.filter((attempt) => attempt.occupied).map((attempt) => attempt.position) ?? []}
-              stepAction={activeStep?.action}
-              nested={visibleNested}
-              lists={visibleLists}
-              nestedByPosition={result?.nestedByPosition ?? []}
-              collisionMethod={configuration?.collisionMethod ?? collisionMethod}
-            />
-          </section>
-          {result && (isSearchRun || isDeleteRun) && finalStep && ['found', 'discarded', 'deleted'].includes(finalStep.action) && (
-            <p className={`validation-message validation-message--${finalStep.action === 'discarded' ? 'error' : 'success'}`} role="status">{finalStep.description}</p>
-          )}
-          {result && <VisualizationPanel hash result={result} stepIndex={stepIndex} onStepChange={manualStep} playing={playing} configuration={configuration} />}
-          {result && result.collisions.length > 0 && (
+          {created ? (
+            <>
+              <section className="panel">
+                <h2>Visualización de la tabla hash</h2>
+                <MemoryStructure
+                  hash
+                  values={visibleTable}
+                  currentIndex={activeStep?.current}
+                  initialIndex={activeStep?.initial}
+                  currentArray={activeStep?.currentArray ?? 0}
+                  currentNode={activeStep?.currentNode ?? -1}
+                  collisionIndices={activeStep?.attempts?.filter((attempt) => attempt.occupied).map((attempt) => attempt.position) ?? []}
+                  stepAction={activeStep?.action}
+                  evaluatedPositions={evaluatedPositions}
+                  nestedEvaluatedPositions={nestedEvaluatedPositions}
+                  nested={visibleNested}
+                  lists={visibleLists}
+                  nestedByPosition={result?.nestedByPosition ?? []}
+                  collisionMethod={configuration?.collisionMethod ?? collisionMethod}
+                />
+              </section>
+              {result && (isSearchRun || isDeleteRun) && finalStep && ['found', 'discarded', 'deleted'].includes(finalStep.action) && (
+                <p className={`validation-message validation-message--${finalStep.action === 'discarded' ? 'error' : 'success'}`} role="status">{finalStep.description}</p>
+              )}
+              {result && <VisualizationPanel hash result={result} stepIndex={stepIndex} onStepChange={manualStep} playing={playing} configuration={configuration} />}
+              {result && result.collisions.length > 0 && (
+                <section className="panel">
+                  <h2>Resumen de colisiones</h2>
+                  {result.collisions.map((collision, index) => (
+                    <article className="collision-summary" key={`${collision.key}-${index}`}>
+                      <strong>Clave {collision.key} · posición inicial {collision.initial}</strong>
+                      <span>Método: {collision.method}</span>
+                      <p>{collision.attempts.map((attempt) => `${attempt.position} → ${attempt.occupied ? 'ocupada' : 'libre'}`).join(' · ')}</p>
+                      <small>Posición final: {collision.finalPosition}</small>
+                    </article>
+                  ))}
+                </section>
+              )}
+            </>
+          ) : (
             <section className="panel">
-              <h2>Resumen de colisiones</h2>
-              {result.collisions.map((collision, index) => (
-                <article className="collision-summary" key={`${collision.key}-${index}`}>
-                  <strong>Clave {collision.key} · posición inicial {collision.initial}</strong>
-                  <span>Método: {collision.method}</span>
-                  <p>{collision.attempts.map((attempt) => `${attempt.position} → ${attempt.occupied ? 'ocupada' : 'libre'}`).join(' · ')}</p>
-                  <small>Posición final: {collision.finalPosition}</small>
-                </article>
-              ))}
+              <h2>Visualización de la tabla hash</h2>
+              <div className="visualization-placeholder">
+                <span>▦</span>
+                <p>Configura los parámetros y presiona "Crear estructura" para ver la tabla hash.</p>
+              </div>
             </section>
           )}
         </div>

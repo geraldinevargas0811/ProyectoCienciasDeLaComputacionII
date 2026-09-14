@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, PageHeader } from '../../../components/common/UI';
-import { InsertDataPanel } from '../../../components/search/SearchPanels';
-import SearchPanel from '../../../components/external/SearchPanel';
+import { OperationsBlock } from '../../../components/search/SearchPanels';
 import IndexFileViz from '../../../components/external/IndexFileViz';
 import ExplanationPanel from '../../../components/external/ExplanationPanel';
 import ExternalResult from '../../../components/external/ExternalResult';
@@ -12,6 +11,7 @@ import { buildSparseIndex, sequentialIndexSearch } from '../../../utils/external
 
 const digitsOnly = (value) => String(value ?? '').replace(/\D/g, '');
 const keySizeOptions = [
+  ['1', '1 dígito'],
   ['2', '2 dígitos'],
   ['3', '3 dígitos'],
   ['4', '4 dígitos'],
@@ -108,8 +108,9 @@ export default function SequentialIndexPage() {
               {message && <p className={`validation-message validation-message--${message.type}`} role="status">{message.text}</p>}
               <Button onClick={createFile}>Crear estructura</Button>
             </section>
-            {loaded && <InsertDataPanel insertedCount={records?.length ?? 0} total={Number(count) || 0} onInsert={insertManual} onGenerate={generate} />}
-            {loaded && <SearchPanel onSearch={runSearch} onClear={clearFile} maxLength={Number(digits)} />}
+            {loaded && (
+              <OperationsBlock insertedCount={records?.length ?? 0} total={Number(count) || 0} onInsert={insertManual} onGenerate={generate} onSearch={runSearch} onClear={clearFile} maxKeyLength={Number(digits)} />
+            )}
             {result && <ExternalResult result={{ ...result, key: lastTarget }} timeMs={timeMs} />}
           </div>
           <div className="lab-layout__visual">

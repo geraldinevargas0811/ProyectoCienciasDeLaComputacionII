@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, PageHeader } from '../../../components/common/UI';
-import { InsertDataPanel } from '../../../components/search/SearchPanels';
+import { OperationsBlock } from '../../../components/search/SearchPanels';
 import HashTableViz from '../../../components/external/HashTableViz';
 import BucketDirectory from '../../../components/external/BucketDirectory';
 import ExplanationPanel from '../../../components/external/ExplanationPanel';
@@ -14,6 +14,7 @@ const digitOptions = [
   ['1', '1 dígito'],
   ['2', '2 dígitos'],
   ['3', '3 dígitos'],
+  ['4', '4 dígitos'],
 ];
 const digitsOnly = (value) => String(value ?? '').replace(/\D/g, '');
 
@@ -34,7 +35,6 @@ export default function FuncHashPage() {
   const [keys, setKeys] = useState([]);
   const [created, setCreated] = useState(false);
   const [createMessage, setCreateMessage] = useState(null);
-  const [actionMessage, setActionMessage] = useState(null);
 
   const [hashResult, setHashResult] = useState(null);
   const [bucketData, setBucketData] = useState(null);
@@ -134,11 +134,6 @@ export default function FuncHashPage() {
   }
   const currentKey = step?.key ?? null;
 
-  const onAction = async (handler) => {
-    const response = await handler();
-    if (response) setActionMessage(response);
-  };
-
   return (
     <>
       <PageHeader title="Búsqueda por transformación de claves" />
@@ -162,22 +157,16 @@ export default function FuncHashPage() {
             <Button onClick={createFile}>Crear estructura</Button>
           </section>
 
-          {created && <InsertDataPanel fieldLabel="Clave" insertedCount={keys.length} total={Number(keyCount) || 0} onInsert={addKey} onGenerate={generateRandom} />}
-
-          {keys.length > 0 && (
-            <section className="panel keys-panel">
-              <h2>Claves a ingresar</h2>
-              <p>{keys.join(' → ')}</p>
-              <small>Se transformarán en exactamente este orden con la función seleccionada.</small>
-            </section>
+          {created && (
+            <OperationsBlock fieldLabel="Clave" insertedCount={keys.length} total={Number(keyCount) || 0} onInsert={addKey} onGenerate={generateRandom} actionLabel="Calcular posiciones" onAction={calculateHash} onClear={clearKeys}>
+              {keys.length > 0 && (
+                <div className="keys-panel keys-panel--embed">
+                  <p>{keys.join(' → ')}</p>
+                  <small>Se transformarán en exactamente este orden con la función seleccionada.</small>
+                </div>
+              )}
+            </OperationsBlock>
           )}
-
-          <section className="panel">
-            <h2>Operaciones</h2>
-            <Button onClick={() => onAction(calculateHash)}>Calcular posiciones</Button>
-            <Button variant="secondary" className="operation-clear" onClick={() => { const r = clearKeys(); setActionMessage(r); }}>Limpiar</Button>
-            {actionMessage && <p className={`validation-message validation-message--${actionMessage.type}`} role="status">{actionMessage.text}</p>}
-          </section>
         </div>
 
         <div className="lab-layout__visual">
