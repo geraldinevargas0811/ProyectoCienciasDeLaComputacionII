@@ -15,7 +15,7 @@ const sequentialItems = [
 ];
 
 export default function Sidebar({ navigate, path }) {
-  const [internalOpen, setInternalOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(true);
   const [externalOpen, setExternalOpen] = useState(false);
   const [sequentialOpen, setSequentialOpen] = useState(false);
   const [transformationOpen, setTransformationOpen] = useState(false);
